@@ -162,7 +162,10 @@ def cmd_sync(args: argparse.Namespace) -> None:
     """Sync a provider to agents."""
     from apm.sync import print_sync_results, sync_provider
 
-    results = sync_provider(args.provider, args.agents, args.dry_run)
+    agents = None
+    if args.agents:
+        agents = [a.strip() for a in args.agents.split(",")]
+    results = sync_provider(args.provider, agents, args.dry_run)
     print_sync_results(results, args.dry_run)
 
 
