@@ -10,6 +10,7 @@ HOME = Path.home()
 APM_DIR = HOME / ".apm"
 PROVIDERS_FILE = APM_DIR / "providers.json"
 SYNC_STATE_FILE = APM_DIR / "sync-state.json"
+LOG_FILE = APM_DIR / "apm.log"
 
 # Agent config paths
 CLAUDE_CODE_CONFIG = HOME / ".claude" / "settings.json"

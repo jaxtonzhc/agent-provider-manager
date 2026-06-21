@@ -1,19 +1,13 @@
-# apm — Agent Provider Manager
+# Agent Provider Manager
 
-[![CI](https://github.com/jaxtonzhc/apm/actions/workflows/ci.yml/badge.svg)](https://github.com/jaxtonzhc/apm/actions/workflows/ci.yml)
+[![CI](https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/agent-provider-manager)](https://pypi.org/project/agent-provider-manager/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/pypi/pyversions/agent-provider-manager)](https://pypi.org/project/agent-provider-manager/)
 
-**Provider-centric API key management for AI coding agents.**
+**Centralized API provider management for AI coding agents.**
 
 Your API subscriptions are the source of truth. Agents come and go — your provider config stays.
-
-## Why?
-
-You have multiple AI coding agents (Claude Code, Codex, Hermes, OpenClaw, ZCode, WorkBuddy) and multiple API subscriptions (OpenAI, DeepSeek, Xiaomi MiMo, GLM...). When you get a new subscription or want to switch, you have to manually update each agent's config.
-
-**apm flips the model**: manage providers centrally, sync to any agent with one command.
 
 ```
 ┌─────────────┐
@@ -23,21 +17,25 @@ You have multiple AI coding agents (Claude Code, Codex, Hermes, OpenClaw, ZCode,
        │  apm sync glm
        ├──────────────→ Claude Code
        ├──────────────→ Codex
+       ├──────────────→ Cursor
        ├──────────────→ Hermes
-       ├──────────────→ OpenClaw
        ├──────────────→ ZCode
-       └──────────────→ WorkBuddy
+       └──────────────→ ... (19 agents supported)
 ```
 
 ## Install
 
+**One-line install** (macOS/Linux):
+
 ```bash
-pip install agent-provider-manager
+curl -sSL https://raw.githubusercontent.com/jaxtonzhc/agent-provider-manager/main/install.sh | bash
 ```
 
-Or with [pipx](https://pypa.github.io/pipx/) (recommended for CLI tools):
+Or with pip/pipx:
 
 ```bash
+pip install agent-provider-manager
+# or
 pipx install agent-provider-manager
 ```
 
@@ -47,14 +45,11 @@ pipx install agent-provider-manager
 # 1. Scan installed agents
 apm scan
 
-# 2. Add your API provider
-apm provider add glm \
-  --url "https://open.bigmodel.cn/api/paas/v1" \
-  --key "your-api-key" \
-  --models "GLM-5.2,GLM-5-Turbo"
+# 2. Add a provider (uses built-in registry — just provide the key!)
+apm provider add deepseek --key sk-xxx
 
 # 3. Sync to all agents
-apm sync glm
+apm sync deepseek
 
 # 4. Check status
 apm status
@@ -62,63 +57,80 @@ apm status
 
 ## Commands
 
-### Agent Management
+### Core
 
-```bash
-apm scan              # Scan installed agents
-apm status            # Show current provider for each agent
-```
+| Command | Description |
+|---------|-------------|
+| `apm scan` | Scan installed agents |
+| `apm status` | Show current provider for each agent |
+| `apm doctor [--fix]` | Diagnose and fix issues |
 
 ### Provider Management
 
-```bash
-apm provider add <name> --url <url> --key <key> [--models m1,m2]
-apm provider remove <name>
-apm provider list
-apm provider show <name>
-apm provider use <name>     # Set active provider
-```
+| Command | Description |
+|---------|-------------|
+| `apm provider add <name> --key <key>` | Add provider (auto-fills URL from registry) |
+| `apm provider add <name> --url <url> --key <key>` | Add custom provider |
+| `apm provider remove <name>` | Remove a provider |
+| `apm provider list` | List configured providers |
+| `apm provider show <name>` | Show provider details |
+| `apm provider use <name>` | Set active provider |
+| `apm provider import` | Import from installed agents |
+| `apm provider known` | List known providers from registry |
 
 ### Sync
 
-```bash
-apm sync <provider>                        # Sync to all installed agents
-apm sync <provider> --agents claude-code,codex  # Sync to specific agents
-apm sync <provider> --dry-run              # Preview changes without writing
+| Command | Description |
+|---------|-------------|
+| `apm sync <provider>` | Sync to all installed agents |
+| `apm sync <provider> --agents a1,a2` | Sync to specific agents |
+| `apm sync <provider> --dry-run` | Preview changes |
+| `apm switch <provider>` | Alias for sync |
 
-apm switch <provider>                      # Alias for sync
+### Maintenance
+
+| Command | Description |
+|---------|-------------|
+| `apm update` | Update provider/agent registry |
+| `apm self-update` | Update apm itself |
+| `apm logs [--tail N]` | Show log file |
+| `apm agents` | List known agents |
+| `apm providers` | List known providers |
+
+### Debug
+
+```bash
+apm --debug status          # Verbose logging
+APM_DEBUG=1 apm status     # Via environment variable
 ```
 
-## Supported Agents
+## Built-in Registry
 
-| Agent | Config Location | Format |
-|-------|----------------|--------|
-| Claude Code | `~/.claude/settings.json` | JSON (env vars) |
-| Codex | `~/.codex/config.toml` + `auth.json` | TOML + JSON |
-| Hermes | `~/.hermes/config.yaml` + `.env` | YAML + dotenv |
-| OpenClaw | `~/.openclaw/openclaw.json` | JSON |
-| ZCode | `~/.zcode/v2/config.json` | JSON |
-| WorkBuddy | `~/.workbuddy/models.json` | JSON |
+**19 AI Agents** supported out of the box:
 
-## Codex Proxy
+Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, Hermes, OpenClaw, ZCode, WorkBuddy, Aider, Continue, Cody, Tabnine, Amazon Q, Mimocode, OpenCode, Pi, OhMyPi
 
-Codex uses OpenAI's Responses API. For non-OpenAI providers, apm automatically detects if [CC Switch](https://github.com/nicepkg/cc-switch) is running on `127.0.0.1:15721` and configures Codex to route through it (handles Response API → Chat Completions translation).
+**21 Providers** with pre-configured base URLs and models:
+
+OpenAI, Anthropic, DeepSeek, Google Gemini, GLM (Zhipu), xAI (Grok), Moonshot, SiliconFlow, OpenRouter, Together AI, Fireworks AI, Volcengine, Baidu Qianfan, Alibaba Qwen, MiniMax, Mistral AI, Perplexity, Xiaomi MiMo, Groq, Cerebras, SambaNova
+
+The registry is updated remotely — run `apm update` to get the latest providers and models.
 
 ## Storage
 
 ```
 ~/.apm/
-├── providers.json     # Provider registry
-└── sync-state.json    # Sync history
+├── providers.json          # Your provider configs
+├── sync-state.json         # Sync history
+├── registry-cache.json     # Remote registry cache
+└── apm.log                 # Debug log
 ```
-
-Config files are created automatically on first use.
 
 ## Development
 
 ```bash
-git clone https://github.com/jaxtonzhc/apm.git
-cd apm
+git clone https://github.com/jaxtonzhc/agent-provider-manager.git
+cd agent-provider-manager
 pip install -e ".[dev]"
 make test
 ```

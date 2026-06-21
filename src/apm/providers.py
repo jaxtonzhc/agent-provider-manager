@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 
 from apm.config import APM_DIR, PROVIDERS_FILE
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_dir() -> None:
@@ -151,3 +154,90 @@ def print_detail(name: str) -> None:
     print(f"  Models:   {models}")
     print(f"  Created:  {p['created_at']}")
     print()
+
+
+def import_from_agents(agents: list[str] | None = None) -> list[dict]:
+    """Import provider configs from installed agents.
+
+    Reads each agent's current provider config and adds it to the registry.
+    Returns list of imported providers.
+    """
+    from apm.agents.registry import ADAPTERS
+    from apm.detect import get_installed_agents
+
+    if agents is None:
+        agents = get_installed_agents()
+
+    imported: list[dict] = []
+    for agent_name in agents:
+        adapter = ADAPTERS.get(agent_name)
+        if not adapter or not adapter.is_installed():
+            continue
+        try:
+            current = adapter.read_provider()
+            if not current:
+                continue
+            # Generate a slug from the base URL
+            url = current.get("base_url", "")
+            if not url:
+                continue
+            # Try to match a known provider
+            slug = _guess_provider_slug(url)
+            if not slug:
+                slug = agent_name
+
+            # Check if already exists
+            existing = get(slug)
+            if existing:
+                logger.debug("Provider %s already exists, skipping", slug)
+                imported.append({"agent": agent_name, "provider": slug, "status": "exists"})
+                continue
+
+            # Add
+            add(
+                name=slug.replace("-", " ").title(),
+                base_url=url,
+                api_key=current.get("api_key", ""),
+                protocol=current.get("protocol", "openai-compatible"),
+                models=[current["model"]] if current.get("model") else [],
+            )
+            imported.append({"agent": agent_name, "provider": slug, "status": "imported"})
+            logger.debug("Imported provider %s from %s", slug, agent_name)
+        except Exception as e:
+            logger.debug("Failed to import from %s: %s", agent_name, e)
+            imported.append({"agent": agent_name, "provider": None, "status": "error"})
+
+    return imported
+
+
+def _guess_provider_slug(url: str) -> str | None:
+    """Guess provider slug from base URL."""
+    url_lower = url.lower()
+    mappings = {
+        "openai.com": "openai",
+        "anthropic.com": "anthropic",
+        "deepseek.com": "deepseek",
+        "googleapis.com": "google-gemini",
+        "bigmodel.cn": "zhipu-glm",
+        "x.ai": "xai",
+        "moonshot.cn": "moonshot",
+        "siliconflow.cn": "siliconflow",
+        "openrouter.ai": "openrouter",
+        "together.xyz": "together",
+        "fireworks.ai": "fireworks",
+        "volces.com": "volcengine",
+        "baidu.com": "baidu-qianfan",
+        "aliyun.com": "alibaba-qwen",
+        "dashscope": "alibaba-qwen",
+        "minimax.chat": "minimax",
+        "mistral.ai": "mistral",
+        "perplexity.ai": "perplexity",
+        "xiaomimimo.com": "xiamimimo",
+        "groq.com": "groq",
+        "cerebras.ai": "cerebras",
+        "sambanova.ai": "sambanova",
+    }
+    for pattern, slug in mappings.items():
+        if pattern in url_lower:
+            return slug
+    return None

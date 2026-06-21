@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "agents": {
+    "claude-code": {
+      "name": "Claude Code",
+      "config_paths": ["~/.claude/settings.json"],
+      "protocol": "anthropic",
+      "website": "https://docs.anthropic.com/en/docs/claude-code",
+      "description": "Anthropic's official CLI coding agent"
+    },
+    "codex": {
+      "name": "Codex",
+      "config_paths": ["~/.codex/config.toml", "~/.codex/auth.json"],
+      "protocol": "responses",
+      "website": "https://github.com/openai/codex",
+      "description": "OpenAI's CLI coding agent (uses Responses API)"
+    },
+    "cursor": {
+      "name": "Cursor",
+      "config_paths": ["~/.cursor/mcp.json"],
+      "protocol": "openai-compatible",
+      "website": "https://cursor.sh",
+      "description": "AI-first code editor"
+    },
+    "copilot": {
+      "name": "GitHub Copilot",
+      "config_paths": ["~/.config/github-copilot/"],
+      "protocol": "openai",
+      "website": "https://copilot.github.com",
+      "description": "GitHub's AI pair programmer"
+    },
+    "windsurf": {
+      "name": "Windsurf",
+      "config_paths": ["~/.windsurf/"],
+      "protocol": "openai-compatible",
+      "website": "https://codeium.com/windsurf",
+      "description": "Codeium's AI-powered IDE"
+    },
+    "hermes": {
+      "name": "Hermes",
+      "config_paths": ["~/.hermes/config.yaml", "~/.hermes/.env"],
+      "protocol": "openai-compatible",
+      "website": "https://hermes.ai",
+      "description": "Multi-model AI coding agent"
+    },
+    "openclaw": {
+      "name": "OpenClaw",
+      "config_paths": ["~/.openclaw/openclaw.json"],
+      "protocol": "openai-compatible",
+      "website": "https://openclaw.ai",
+      "description": "Open-source AI coding agent"
+    },
+    "zcode": {
+      "name": "ZCode",
+      "config_paths": ["~/.zcode/v2/config.json"],
+      "protocol": "openai-compatible",
+      "website": "https://zcode.ai",
+      "description": "Multi-provider AI coding assistant"
+    },
+    "workbuddy": {
+      "name": "WorkBuddy",
+      "config_paths": ["~/.workbuddy/models.json"],
+      "protocol": "openai-compatible",
+      "website": "https://workbuddy.ai",
+      "description": "AI-powered productivity assistant"
+    },
+    "aider": {
+      "name": "Aider",
+      "config_paths": ["~/.aider.conf.yml"],
+      "protocol": "openai-compatible",
+      "website": "https://aider.chat",
+      "description": "AI pair programming in your terminal"
+    },
+    "openai-codex-cli": {
+      "name": "OpenAI Codex CLI",
+      "config_paths": ["~/.codex/config.toml"],
+      "protocol": "responses",
+      "website": "https://github.com/openai/codex",
+      "description": "OpenAI's official Codex CLI"
+    },
+    "continue": {
+      "name": "Continue",
+      "config_paths": ["~/.continue/config.json"],
+      "protocol": "openai-compatible",
+      "website": "https://continue.dev",
+      "description": "Open-source AI code assistant"
+    },
+    "cody": {
+      "name": "Cody",
+      "config_paths": ["~/.config/sourcegraph/cody/"],
+      "protocol": "openai-compatible",
+      "website": "https://sourcegraph.com/cody",
+      "description": "Sourcegraph's AI coding assistant"
+    },
+    "tabnine": {
+      "name": "Tabnine",
+      "config_paths": ["~/.config/Tabnine/"],
+      "protocol": "openai-compatible",
+      "website": "https://tabnine.com",
+      "description": "AI code completion assistant"
+    },
+    "amazon-q": {
+      "name": "Amazon Q Developer",
+      "config_paths": ["~/.aws/amazonq/"],
+      "protocol": "openai-compatible",
+      "website": "https://aws.amazon.com/q/developer/",
+      "description": "AWS AI coding assistant"
+    },
+    "mimocode": {
+      "name": "Mimocode",
+      "config_paths": ["~/.local/share/mimocode/auth.json"],
+      "protocol": "openai-compatible",
+      "website": "https://mimocode.ai",
+      "description": "Xiaomi's AI coding assistant"
+    },
+    "opencode": {
+      "name": "OpenCode",
+      "config_paths": ["~/.opencode/config.json"],
+      "protocol": "openai-compatible",
+      "website": "https://opencode.ai",
+      "description": "Open-source coding agent"
+    },
+    "pi": {
+      "name": "Pi Agent",
+      "config_paths": ["~/.pi/agent/settings.json"],
+      "protocol": "openai-compatible",
+      "website": "https://pi.ai",
+      "description": "Inflection AI coding agent"
+    },
+    "ohmypi": {
+      "name": "OhMyPi",
+      "config_paths": ["~/.omp/agent/config.json"],
+      "protocol": "openai-compatible",
+      "website": "https://ohmypi.ai",
+      "description": "Enhanced Pi agent"
+    }
+  },
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "base_url": "https://api.openai.com/v1",
+      "protocol": "openai",
+      "models": ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+      "website": "https://platform.openai.com",
+      "description": "OpenAI API"
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "base_url": "https://api.anthropic.com",
+      "protocol": "anthropic",
+      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-haiku-4-5-20250506"],
+      "website": "https://console.anthropic.com",
+      "description": "Anthropic Claude API"
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "protocol": "openai-compatible",
+      "models": ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-r1", "deepseek-v3"],
+      "website": "https://platform.deepseek.com",
+      "description": "DeepSeek API"
+    },
+    "google-gemini": {
+      "name": "Google Gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "protocol": "gemini",
+      "models": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+      "website": "https://aistudio.google.com",
+      "description": "Google Gemini API"
+    },
+    "zhipu-glm": {
+      "name": "GLM (Zhipu)",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "protocol": "openai-compatible",
+      "models": ["GLM-5.2", "GLM-5-Turbo", "GLM-4-Flash", "GLM-4-Plus"],
+      "website": "https://open.bigmodel.cn",
+      "description": "Zhipu GLM API"
+    },
+    "xai": {
+      "name": "xAI (Grok)",
+      "base_url": "https://api.x.ai/v1",
+      "protocol": "openai-compatible",
+      "models": ["grok-3", "grok-3-mini", "grok-2"],
+      "website": "https://console.x.ai",
+      "description": "xAI Grok API"
+    },
+    "moonshot": {
+      "name": "Moonshot (Kimi)",
+      "base_url": "https://api.moonshot.cn/v1",
+      "protocol": "openai-compatible",
+      "models": ["moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"],
+      "website": "https://platform.moonshot.cn",
+      "description": "Moonshot Kimi API"
+    },
+    "siliconflow": {
+      "name": "SiliconFlow",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "protocol": "openai-compatible",
+      "models": ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-72B-Instruct", "meta-llama/Meta-Llama-3.1-70B-Instruct"],
+      "website": "https://siliconflow.cn",
+      "description": "SiliconFlow model hub"
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "protocol": "openai-compatible",
+      "models": ["anthropic/claude-sonnet-4", "openai/gpt-4o", "google/gemini-2.5-pro", "deepseek/deepseek-r1"],
+      "website": "https://openrouter.ai",
+      "description": "Unified API for multiple providers"
+    },
+    "together": {
+      "name": "Together AI",
+      "base_url": "https://api.together.xyz/v1",
+      "protocol": "openai-compatible",
+      "models": ["meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo", "deepseek-ai/DeepSeek-V3"],
+      "website": "https://api.together.xyz",
+      "description": "Together AI inference platform"
+    },
+    "fireworks": {
+      "name": "Fireworks AI",
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "protocol": "openai-compatible",
+      "models": ["accounts/fireworks/models/llama-v3p1-405b-instruct", "accounts/fireworks/models/deepseek-v3"],
+      "website": "https://fireworks.ai",
+      "description": "Fireworks AI inference"
+    },
+    "volcengine": {
+      "name": "Volcengine (Doubao)",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "protocol": "openai-compatible",
+      "models": ["doubao-1.5-pro-256k", "doubao-1.5-lite-32k", "deepseek-r1"],
+      "website": "https://console.volcengine.com/ark",
+      "description": "ByteDance Volcengine API"
+    },
+    "baidu-qianfan": {
+      "name": "Baidu Qianfan",
+      "base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
+      "protocol": "openai-compatible",
+      "models": ["ernie-4.5-8k", "ernie-4.0-8k", "ernie-3.5-8k"],
+      "website": "https://qianfan.cloud.baidu.com",
+      "description": "Baidu ERNIE API"
+    },
+    "alibaba-qwen": {
+      "name": "Alibaba Qwen",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "protocol": "openai-compatible",
+      "models": ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-vl-max"],
+      "website": "https://dashscope.aliyun.com",
+      "description": "Alibaba Qwen API"
+    },
+    "minimax": {
+      "name": "MiniMax",
+      "base_url": "https://api.minimax.chat/v1",
+      "protocol": "openai-compatible",
+      "models": ["MiniMax-Text-01", "abab6.5s-chat"],
+      "website": "https://platform.minimaxi.com",
+      "description": "MiniMax API"
+    },
+    "mistral": {
+      "name": "Mistral AI",
+      "base_url": "https://api.mistral.ai/v1",
+      "protocol": "openai-compatible",
+      "models": ["mistral-large-latest", "mistral-medium-latest", "codestral-latest"],
+      "website": "https://console.mistral.ai",
+      "description": "Mistral AI API"
+    },
+    "perplexity": {
+      "name": "Perplexity",
+      "base_url": "https://api.perplexity.ai",
+      "protocol": "openai-compatible",
+      "models": ["sonar-pro", "sonar", "sonar-reasoning-pro"],
+      "website": "https://www.perplexity.ai",
+      "description": "Perplexity AI API"
+    },
+    "xiamimimo": {
+      "name": "Xiaomi MiMo",
+      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+      "protocol": "openai-compatible",
+      "models": ["mimo-v2.5-pro", "mimo-v2.5"],
+      "website": "https://mimo.xiaomi.com",
+      "description": "Xiaomi MiMo API"
+    },
+    "groq": {
+      "name": "Groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "protocol": "openai-compatible",
+      "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+      "website": "https://console.groq.com",
+      "description": "Groq fast inference"
+    },
+    "cerebras": {
+      "name": "Cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "protocol": "openai-compatible",
+      "models": ["llama3.3-70b", "llama3.1-8b"],
+      "website": "https://cloud.cerebras.ai",
+      "description": "Cerebras fast inference"
+    },
+    "sambanova": {
+      "name": "SambaNova",
+      "base_url": "https://api.sambanova.ai/v1",
+      "protocol": "openai-compatible",
+      "models": ["Meta-Llama-3.1-405B-Instruct", "DeepSeek-V3-0324"],
+      "website": "https://cloud.sambanova.ai",
+      "description": "SambaNova fast inference"
+    }
+  }
+}
