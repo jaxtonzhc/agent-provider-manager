@@ -219,6 +219,51 @@ def cmd_providers(_args: argparse.Namespace) -> None:
     print_providers()
 
 
+def cmd_snapshot(args: argparse.Namespace) -> None:
+    """Snapshot management subcommands."""
+    from apm.snapshot import (
+        delete_snapshot,
+        print_restore_result,
+        print_save_result,
+        print_snapshots,
+        restore_snapshot,
+        save_snapshot,
+    )
+
+    sub = args.subcommand
+    if not sub:
+        print("  Usage: apm snapshot <subcommand>")
+        print("  Subcommands: save, restore, list, delete")
+        return
+
+    if sub == "save":
+        agents = None
+        if hasattr(args, "agents") and args.agents:
+            agents = [a.strip() for a in args.agents.split(",")]
+        name = getattr(args, "name", None)
+        result = save_snapshot(name=name, agents=agents)
+        print_save_result(result)
+    elif sub == "restore":
+        if not hasattr(args, "name") or not args.name:
+            print("  Usage: apm snapshot restore <name> [--agents a1,a2]")
+            return
+        agents = None
+        if hasattr(args, "agents") and args.agents:
+            agents = [a.strip() for a in args.agents.split(",")]
+        result = restore_snapshot(args.name, agents=agents)
+        print_restore_result(result)
+    elif sub == "list":
+        print_snapshots()
+    elif sub == "delete":
+        if not hasattr(args, "name") or not args.name:
+            print("  Usage: apm snapshot delete <name>")
+            return
+        if delete_snapshot(args.name):
+            print(f"  Deleted snapshot: {args.name}")
+        else:
+            print(f"  Snapshot not found: {args.name}")
+
+
 def cmd_version(_args: argparse.Namespace) -> None:
     """Print version."""
     print(f"apm {__version__}")
@@ -308,6 +353,27 @@ def build_parser() -> argparse.ArgumentParser:
     # providers (registry)
     sub.add_parser("providers", help="List known providers from registry")
 
+    # snapshot
+    p_snap = sub.add_parser("snapshot", help="Save/restore agent configs")
+    snap_sub = p_snap.add_subparsers(dest="subcommand")
+
+    # snapshot save
+    p_snap_save = snap_sub.add_parser("save", help="Save current configs as snapshot")
+    p_snap_save.add_argument("--name", help="Snapshot name (default: timestamp)")
+    p_snap_save.add_argument("--agents", help="Comma-separated agent names")
+
+    # snapshot restore
+    p_snap_restore = snap_sub.add_parser("restore", help="Restore configs from snapshot")
+    p_snap_restore.add_argument("name", help="Snapshot name")
+    p_snap_restore.add_argument("--agents", help="Comma-separated agent names")
+
+    # snapshot list
+    snap_sub.add_parser("list", help="List saved snapshots")
+
+    # snapshot delete
+    p_snap_del = snap_sub.add_parser("delete", help="Delete a snapshot")
+    p_snap_del.add_argument("name", help="Snapshot name")
+
     return parser
 
 
@@ -335,6 +401,7 @@ def main(argv: list[str] | None = None) -> None:
         "logs": cmd_logs,
         "agents": cmd_agents,
         "providers": cmd_providers,
+        "snapshot": cmd_snapshot,
         "version": cmd_version,
     }
 
