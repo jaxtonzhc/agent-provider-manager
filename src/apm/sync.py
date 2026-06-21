@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 
 from apm.agents.registry import ADAPTERS
 from apm.config import APM_DIR, SYNC_STATE_FILE
 from apm.detect import detect_agent, get_installed_agents
 from apm.providers import get as get_provider
+
+logger = logging.getLogger(__name__)
 
 
 def _load_state() -> dict:
@@ -47,6 +50,13 @@ def sync_provider(
     if not targets:
         return [{"agent": None, "status": "warning", "message": "No installed agents found"}]
 
+    # Auto-snapshot before sync (unless dry-run)
+    if not dry_run:
+        from apm.snapshot import save_snapshot
+        snapshot_name = f"auto-pre-sync-{provider_name}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        save_snapshot(name=snapshot_name, agents=targets)
+        logger.info("Auto-snapshot saved: %s", snapshot_name)
+
     results: list[dict] = []
     for agent_name in targets:
         adapter = ADAPTERS.get(agent_name)
@@ -82,6 +92,7 @@ def sync_provider(
                 state["syncs"][r["agent"]] = {
                     "provider": provider_name,
                     "synced_at": datetime.now(timezone.utc).isoformat(),
+                    "snapshot": snapshot_name,
                 }
         _save_state(state)
 
