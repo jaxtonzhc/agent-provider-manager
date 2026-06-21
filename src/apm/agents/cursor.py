@@ -1,18 +1,21 @@
 """Cursor agent adapter.
 
 Config: ~/.cursor/settings.json
-Fields: Uses OpenAI-compatible env vars similar to Claude Code.
+Fields: openai.baseUrl / openai.apiKey / openai.model (OpenAI-compatible)
 
-Cursor reads provider config from its settings.json, supporting
-custom API endpoints via environment variables.
+Cursor BYOK custom keys only work in Ask/Plan mode.
+Agent mode (Composer, inline edit, autocomplete) is locked to Cursor's backend.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 
 from apm.agents.base import AgentAdapter
 from apm.config import CURSOR_SETTINGS, atomic_write
+
+logger = logging.getLogger(__name__)
 
 
 class CursorAdapter(AgentAdapter):
@@ -27,7 +30,6 @@ class CursorAdapter(AgentAdapter):
         with open(CURSOR_SETTINGS) as f:
             data = json.load(f)
 
-        # Cursor stores overrides in openai.* keys
         url = data.get("openai.baseUrl", "")
         key = data.get("openai.apiKey", "")
         model = data.get("openai.model", "")
@@ -56,4 +58,13 @@ class CursorAdapter(AgentAdapter):
         if models:
             data["openai.model"] = models[0]
 
-        atomic_write(CURSOR_SETTINGS, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        atomic_write(
+            CURSOR_SETTINGS,
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+        )
+
+        from apm.colors import dim, yellow
+        print(
+            f"  {yellow('Note:')} Cursor BYOK keys only work in "
+            f"Ask/Plan mode.{dim(' Agent mode uses Cursor built-in.')}"
+        )

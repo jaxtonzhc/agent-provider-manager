@@ -32,7 +32,7 @@ def cmd_provider(args: argparse.Namespace) -> None:
     sub = args.subcommand
     if not sub:
         print("  Usage: apm provider <subcommand>")
-        print("  Subcommands: add, remove, rename, list, show, test, import, known")
+        print("  Subcommands: add, remove, rename, list, show, test, models, import, known")
         return
 
     if sub == "add":
@@ -54,6 +54,8 @@ def cmd_provider(args: argparse.Namespace) -> None:
         _cmd_provider_test(args)
     elif sub == "rename":
         _cmd_provider_rename(args)
+    elif sub == "models":
+        _cmd_provider_models(args)
 
 
 def _resolve_api_key(args: argparse.Namespace) -> str | None:
@@ -181,19 +183,60 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
         suggestions = fuzzy_match(name, registry_names)
         if suggestions:
             hint = ", ".join(yellow(s) for s in suggestions[:3])
-            print(f"  '{name}' not found. Did you mean: {hint}?")
+            print(f"  '{name}' not found in registry. Did you mean: {hint}?")
             if not args.url:
                 return
 
-        if not args.url:
-            print(f"  Error: '{name}' not found in registry. Use --url for custom providers.")
-            print("  Run 'apm providers' to see available providers.")
-            return
-        models = []
+        url = args.url
+        if not url:
+            if not sys.stdin.isatty():
+                print("  Error: --url required for custom providers in non-interactive mode.")
+                return
+            print(f"\n  {bold('Custom Provider Setup')}")
+            print("  " + "─" * 40)
+            url = input("  Base URL (e.g. https://api.example.com/v1): ").strip()
+            if not url:
+                print("  Cancelled.")
+                return
+
+        models: list[str] = []
         if args.models:
             models = [m.strip() for m in args.models.split(",") if m.strip()]
-        slug = add(name, args.url, key, args.protocol or "openai-compatible", models)
-        print(f"  {green('✓')} Added provider: {bold(slug)}")
+
+        if not models and sys.stdin.isatty():
+            print(f"\n  Fetching models from {url}...")
+            from apm.providers import fetch_models
+            fetched = fetch_models(url, key)
+            if fetched:
+                print(f"  Found {green(str(len(fetched)))} models:")
+                for i, m in enumerate(fetched, 1):
+                    print(f"    {i:3d}. {m}")
+                sel = input(
+                    "\n  Enter model numbers (e.g. 1,3,5) or 'all' [all]: "
+                ).strip()
+                if not sel or sel.lower() == "all":
+                    models = fetched
+                else:
+                    for part in sel.split(","):
+                        part = part.strip()
+                        if part.isdigit():
+                            idx = int(part) - 1
+                            if 0 <= idx < len(fetched):
+                                models.append(fetched[idx])
+            else:
+                raw = input("  Models (comma-separated, or press Enter to skip): ").strip()
+                if raw:
+                    models = [m.strip() for m in raw.split(",") if m.strip()]
+
+        alias = getattr(args, "alias", None)
+        protocol = args.protocol or "openai-compatible"
+        slug = add(name, url, key, protocol, models, alias=alias)
+        print(f"\n  {green('✓')} Added provider: {bold(slug)}")
+        print(f"    URL: {url}")
+        if models:
+            shown = ", ".join(models[:5])
+            extra = f" (+{len(models) - 5} more)" if len(models) > 5 else ""
+            print(f"    Models: {shown}{extra}")
 
 
 def _cmd_provider_remove(args: argparse.Namespace) -> None:
@@ -265,6 +308,29 @@ def _cmd_provider_import(args: argparse.Namespace) -> None:
         elif r["status"] == "imported":
             detail = f"added as '{r['provider']}'"
         print(f"  {icon}  {r['agent']:<15} {detail}")
+    print()
+
+
+def _cmd_provider_models(args: argparse.Namespace) -> None:
+    """Fetch and display available models from a provider."""
+    from apm.colors import bold, dim, green, red
+    from apm.providers import fetch_models, get
+
+    name = args.name
+    p = get(name)
+    if not p:
+        print(f"  {red('✗')} Provider '{name}' not found.")
+        return
+
+    print(f"\n  Fetching models from {bold(name)}...")
+    models = fetch_models(p["base_url"], p["api_key"])
+    if not models:
+        print(f"  {red('✗')} No models returned (endpoint may not support /models)")
+        return
+
+    print(f"  {green('✓')} Found {len(models)} models {dim('(sorted by version)')}\n")
+    for i, m in enumerate(models, 1):
+        print(f"  {i:3d}. {m}")
     print()
 
 
@@ -575,6 +641,10 @@ def build_parser() -> argparse.ArgumentParser:
     # provider test
     p_test = prov_sub.add_parser("test", help="Test provider connectivity")
     p_test.add_argument("name", nargs="?", help="Provider name (tests all if omitted)")
+
+    # provider models
+    p_models = prov_sub.add_parser("models", help="Fetch available models from provider")
+    p_models.add_argument("name", help="Provider name")
 
     # sync
     p_sync = sub.add_parser("sync", help="Sync provider to agents")

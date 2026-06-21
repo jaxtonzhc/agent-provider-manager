@@ -373,6 +373,60 @@ def test_provider(name: str, timeout: float = 10.0) -> dict:
         return {"status": "error", "message": str(e), "latency_ms": round(elapsed)}
 
 
+def fetch_models(
+    base_url: str, api_key: str, timeout: float = 15.0,
+) -> list[str]:
+    """Fetch available model list from /v1/models endpoint.
+
+    Returns sorted model IDs (newest version first).
+    """
+    import json as _json
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    url = base_url.rstrip("/") + "/models"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "apm-cli",
+    }
+
+    try:
+        req = Request(url, headers=headers)
+        with urlopen(req, timeout=timeout) as resp:
+            body = _json.loads(resp.read())
+    except (HTTPError, URLError, OSError) as e:
+        logger.warning("Failed to fetch models from %s: %s", url, e)
+        return []
+
+    raw = body.get("data", body.get("models", []))
+    ids: list[str] = []
+    for item in raw:
+        mid = item.get("id") if isinstance(item, dict) else str(item)
+        if mid:
+            ids.append(mid)
+
+    return sort_models_by_version(ids)
+
+
+def sort_models_by_version(model_ids: list[str]) -> list[str]:
+    """Sort model IDs by embedded version number, highest first.
+
+    Version extraction: find the first float-like substring (e.g. "4.5", "2.5").
+    Models with higher versions come first. Ties broken alphabetically.
+    """
+    import re
+
+    def _version_key(mid: str) -> tuple:
+        nums = re.findall(r"\d+(?:\.\d+)?", mid)
+        if not nums:
+            return (1, 0.0, mid)  # no version → sort last
+        best = max(float(n) for n in nums)
+        return (0, -best, mid)  # versioned → sort first, highest version first
+
+    return sorted(model_ids, key=_version_key)
+
+
 def fuzzy_match(name: str, candidates: list[str], threshold: int = 3) -> list[str]:
     """Find candidates within edit distance threshold of name."""
     name_lower = name.lower()

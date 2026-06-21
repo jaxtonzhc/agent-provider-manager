@@ -88,3 +88,93 @@ def test_file_permissions(mock_config):
     assert providers_file.exists()
     mode = oct(os.stat(providers_file).st_mode)[-3:]
     assert mode == "600"
+
+
+class TestSortModelsByVersion:
+    def test_basic_version_sorting(self):
+        from apm.providers import sort_models_by_version
+        models = ["deepseek-v2", "deepseek-v4-flash", "deepseek-v3"]
+        result = sort_models_by_version(models)
+        assert result[0] == "deepseek-v4-flash"
+        assert result[-1] == "deepseek-v2"
+
+    def test_float_versions(self):
+        from apm.providers import sort_models_by_version
+        models = ["mimo-v2.5", "mimo-v1.0", "mimo-v2.5-pro"]
+        result = sort_models_by_version(models)
+        assert result[0] in ("mimo-v2.5", "mimo-v2.5-pro")
+        assert result[-1] == "mimo-v1.0"
+
+    def test_no_version_goes_last(self):
+        from apm.providers import sort_models_by_version
+        models = ["deepseek-chat", "deepseek-v4-flash", "deepseek-reasoner"]
+        result = sort_models_by_version(models)
+        assert result[0] == "deepseek-v4-flash"
+
+    def test_empty_list(self):
+        from apm.providers import sort_models_by_version
+        assert sort_models_by_version([]) == []
+
+    def test_mixed_versions(self):
+        from apm.providers import sort_models_by_version
+        models = ["gpt-4o", "gpt-3.5-turbo", "gpt-5", "claude-sonnet-4.5"]
+        result = sort_models_by_version(models)
+        assert result[0] == "gpt-5"
+
+
+class TestFetchModels:
+    def test_fetch_success(self):
+        import json
+        from unittest.mock import MagicMock, patch as _patch
+
+        from apm.providers import fetch_models
+
+        body = json.dumps({
+            "data": [
+                {"id": "deepseek-v2"},
+                {"id": "deepseek-v4-flash"},
+                {"id": "deepseek-v3"},
+            ]
+        }).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = body
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with _patch("urllib.request.urlopen", return_value=mock_resp):
+            result = fetch_models("https://api.example.com/v1", "sk-test")
+
+        assert len(result) == 3
+        assert result[0] == "deepseek-v4-flash"
+
+    def test_fetch_failure_returns_empty(self):
+        from unittest.mock import patch as _patch
+        from urllib.error import URLError
+
+        from apm.providers import fetch_models
+
+        with _patch("urllib.request.urlopen", side_effect=URLError("fail")):
+            result = fetch_models("https://bad.url/v1", "sk-test")
+
+        assert result == []
+
+    def test_fetch_alt_format(self):
+        """Some providers return {models: [...]} instead of {data: [...]}."""
+        import json
+        from unittest.mock import MagicMock, patch as _patch
+
+        from apm.providers import fetch_models
+
+        body = json.dumps({
+            "models": [{"id": "model-a"}, {"id": "model-b"}]
+        }).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = body
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with _patch("urllib.request.urlopen", return_value=mock_resp):
+            result = fetch_models("https://api.example.com/v1", "sk-test")
+
+        assert "model-a" in result
+        assert "model-b" in result

@@ -3,8 +3,9 @@
 Config: ~/.codex/config.toml + ~/.codex/auth.json
 Fields: OPENAI_API_KEY in auth.json, model_providers in config.toml
 
-Codex uses OpenAI's Responses API, which most third-party providers don't support.
-A proxy is required to translate Responses API → Chat Completions API.
+Codex uses OpenAI's Responses API. Third-party providers need CC Switch
+(https://github.com/farion1231/cc-switch) as a local proxy to translate
+Responses API → Chat Completions API.
 """
 
 from __future__ import annotations
@@ -70,19 +71,24 @@ class CodexAdapter(AgentAdapter):
             cc_running = is_port_open(CC_SWITCH_PORT)
             if cc_running:
                 base_for_codex = CC_SWITCH_URL
-                logger.info("CC Switch detected, routing Codex through proxy")
+                logger.info(
+                    "CC Switch detected on port %d, routing through proxy",
+                    CC_SWITCH_PORT,
+                )
             else:
                 base_for_codex = provider["base_url"]
                 from apm.colors import bold, red, yellow
                 print()
-                title = bold("Codex needs CC Switch for non-OpenAI APIs")
-                url_line = f"Install: {yellow(CC_SWITCH_INSTALL_URL)}"
+                t = bold("Codex requires CC Switch for non-OpenAI APIs")
+                step1 = f"1. Install: {yellow(CC_SWITCH_INSTALL_URL)}"
+                step2 = "2. Add this provider in CC Switch for Codex"
+                step3 = "3. Enable Codex proxy route in CC Switch"
                 note = "Config written — will work once proxy is running."
-                print(f"  {red('┌──────────────────────────────────────────────┐')}")
-                print(f"  {red('│')} {title}")
-                print(f"  {red('│')} {url_line}")
-                print(f"  {red('│')} {note}")
-                print(f"  {red('└──────────────────────────────────────────────┘')}")
+                border = red("─" * 52)
+                print(f"  {red('┌')}{border}{red('┐')}")
+                for ln in (t, step1, step2, step3, "", note):
+                    print(f"  {red('│')} {ln}")
+                print(f"  {red('└')}{border}{red('┘')}")
                 print()
         else:
             base_for_codex = ""
