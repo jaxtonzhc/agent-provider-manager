@@ -119,21 +119,45 @@ def list_providers() -> dict[str, dict]:
     return registry.get("providers", {})
 
 
-def resolve_provider(name: str, api_key: str) -> dict | None:
+def resolve_provider(name: str, api_key: str, variant: str | None = None) -> dict | None:
     """Resolve a provider name to a full provider config.
 
     If the name matches a built-in provider, fill in base_url, protocol, models.
+    Handles variants (token-plan-cn, token-plan-global, api, etc.)
+
     Returns None if not found.
     """
     reg_provider = get_provider(name)
     if not reg_provider:
         return None
+
+    # Determine base URL from variants
+    variants = reg_provider.get("variants", {})
+    base_url = ""
+
+    if variant and variant in variants:
+        base_url = variants[variant]["base_url"]
+    elif variants:
+        # Default to first variant
+        first_key = next(iter(variants))
+        base_url = variants[first_key]["base_url"]
+
+    # Extract model IDs
+    raw_models = reg_provider.get("models", [])
+    models = []
+    for m in raw_models:
+        if isinstance(m, dict):
+            models.append(m["id"])
+        else:
+            models.append(str(m))
+
     return {
         "name": reg_provider["name"],
-        "base_url": reg_provider["base_url"],
+        "base_url": base_url,
         "api_key": api_key,
         "protocol": reg_provider.get("protocol", "openai-compatible"),
-        "models": reg_provider.get("models", []),
+        "models": models,
+        "variants": variants,
     }
 
 
@@ -168,12 +192,29 @@ def print_providers() -> None:
     """Print all known providers."""
     providers = list_providers()
     print(f"\n  Known Providers ({len(providers)})")
-    print("  " + "=" * 50)
+    print("  " + "=" * 60)
     for slug, info in sorted(providers.items()):
-        models = ", ".join(info.get("models", [])[:3])
-        if len(info.get("models", [])) > 3:
+        # Show variants
+        variants = info.get("variants", {})
+        if variants:
+            first_key, first_val = next(iter(variants.items()))
+            base_url = first_val["base_url"]
+        else:
+            base_url = info.get("base_url", "")
+        # Show models
+        raw_models = info.get("models", [])
+        model_names = []
+        for m in raw_models[:3]:
+            if isinstance(m, dict):
+                model_names.append(m.get("id", ""))
+            else:
+                model_names.append(str(m))
+        models = ", ".join(model_names)
+        if len(raw_models) > 3:
             models += ", ..."
-        print(f"  {slug:<20} {info['name']:<20} {info['base_url']}")
+        print(f"  {slug:<20} {info['name']:<20} {base_url}")
         if models:
             print(f"    models: {models}")
+        if variants and len(variants) > 1:
+            print(f"    variants: {', '.join(variants.keys())}")
     print()

@@ -87,11 +87,13 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
     key = args.key
     if not key:
         print("  Error: --key is required")
-        print("  Usage: apm provider add <name> --key <api-key> [--url <url>] [--models m1,m2]")
+        print("  Usage: apm provider add <name> --key <api-key> [--url <url>] [--variant v]")
         return
 
+    variant = getattr(args, "variant", None)
+
     # Try to resolve from registry
-    resolved = resolve_provider(name, key)
+    resolved = resolve_provider(name, key, variant=variant)
     if resolved:
         # Use registry info, allow overrides
         base_url = args.url or resolved["base_url"]
@@ -105,6 +107,13 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
         print(f"    Protocol: {protocol}")
         if models:
             print(f"    Models: {', '.join(models[:5])}")
+
+        # Show available variants if any
+        variants = resolved.get("variants", {})
+        if variants and not variant and len(variants) > 1:
+            print(f"\n  Available variants (use --variant to select):")
+            for vname, vinfo in variants.items():
+                print(f"    {vname:<20} {vinfo['base_url']}")
     else:
         # Custom provider
         if not args.url:
@@ -242,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument("name", help="Provider name (or registry slug)")
     p_add.add_argument("--key", required=True, help="API key")
     p_add.add_argument("--url", help="Base URL (auto-filled from registry if known)")
+    p_add.add_argument("--variant", help="Provider variant (e.g. token-plan-cn, api)")
     p_add.add_argument("--protocol", default="openai-compatible")
     p_add.add_argument("--models", help="Comma-separated model names")
 

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "agents": {
     "claude-code": {
       "name": "Claude Code",
@@ -12,6 +12,8 @@
       "name": "Codex",
       "config_paths": ["~/.codex/config.toml", "~/.codex/auth.json"],
       "protocol": "responses",
+      "requires_proxy": true,
+      "proxy_note": "Most providers don't support Responses API. Requires CC Switch proxy on 127.0.0.1:15721. Install: https://github.com/nicepkg/cc-switch",
       "website": "https://github.com/openai/codex",
       "description": "OpenAI's CLI coding agent (uses Responses API)"
     },
@@ -71,40 +73,12 @@
       "website": "https://aider.chat",
       "description": "AI pair programming in your terminal"
     },
-    "openai-codex-cli": {
-      "name": "OpenAI Codex CLI",
-      "config_paths": ["~/.codex/config.toml"],
-      "protocol": "responses",
-      "website": "https://github.com/openai/codex",
-      "description": "OpenAI's official Codex CLI"
-    },
     "continue": {
       "name": "Continue",
       "config_paths": ["~/.continue/config.json"],
       "protocol": "openai-compatible",
       "website": "https://continue.dev",
       "description": "Open-source AI code assistant"
-    },
-    "cody": {
-      "name": "Cody",
-      "config_paths": ["~/.config/sourcegraph/cody/"],
-      "protocol": "openai-compatible",
-      "website": "https://sourcegraph.com/cody",
-      "description": "Sourcegraph's AI coding assistant"
-    },
-    "tabnine": {
-      "name": "Tabnine",
-      "config_paths": ["~/.config/Tabnine/"],
-      "protocol": "openai-compatible",
-      "website": "https://tabnine.com",
-      "description": "AI code completion assistant"
-    },
-    "amazon-q": {
-      "name": "Amazon Q Developer",
-      "config_paths": ["~/.aws/amazonq/"],
-      "protocol": "openai-compatible",
-      "website": "https://aws.amazon.com/q/developer/",
-      "description": "AWS AI coding assistant"
     },
     "mimocode": {
       "name": "Mimocode",
@@ -119,190 +93,263 @@
       "protocol": "openai-compatible",
       "website": "https://opencode.ai",
       "description": "Open-source coding agent"
-    },
-    "pi": {
-      "name": "Pi Agent",
-      "config_paths": ["~/.pi/agent/settings.json"],
-      "protocol": "openai-compatible",
-      "website": "https://pi.ai",
-      "description": "Inflection AI coding agent"
-    },
-    "ohmypi": {
-      "name": "OhMyPi",
-      "config_paths": ["~/.omp/agent/config.json"],
-      "protocol": "openai-compatible",
-      "website": "https://ohmypi.ai",
-      "description": "Enhanced Pi agent"
     }
   },
   "providers": {
+    "deepseek": {
+      "name": "DeepSeek",
+      "variants": {
+        "api": {
+          "base_url": "https://api.deepseek.com/v1",
+          "description": "DeepSeek API (international)"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "deepseek-chat", "name": "DeepSeek V3", "context": 65536},
+        {"id": "deepseek-reasoner", "name": "DeepSeek R1", "context": 65536, "reasoning": true}
+      ],
+      "website": "https://platform.deepseek.com",
+      "description": "DeepSeek API"
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "variants": {
+        "api": {
+          "base_url": "https://openrouter.ai/api/v1",
+          "description": "OpenRouter unified API"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4"},
+        {"id": "openai/gpt-4.1", "name": "GPT-4.1"},
+        {"id": "google/gemini-2.5-pro-preview", "name": "Gemini 2.5 Pro"},
+        {"id": "deepseek/deepseek-chat-v3-0324", "name": "DeepSeek V3"},
+        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1"},
+        {"id": "meta-llama/llama-4-maverick", "name": "Llama 4 Maverick"},
+        {"id": "qwen/qwen3-235b-a22b", "name": "Qwen3 235B"}
+      ],
+      "website": "https://openrouter.ai",
+      "description": "Unified API for 100+ models from all providers"
+    },
+    "glm": {
+      "name": "GLM (Zhipu)",
+      "variants": {
+        "api": {
+          "base_url": "https://open.bigmodel.cn/api/paas/v4",
+          "description": "GLM API Plan (按量付费)"
+        },
+        "token-plan-cn": {
+          "base_url": "https://token-plan-cn.zhipu.bigmodel.cn/api/paas/v4",
+          "description": "GLM Token Plan 中国区 (订阅制)"
+        },
+        "token-plan-global": {
+          "base_url": "https://token-plan.zhipu.bigmodel.cn/api/paas/v4",
+          "description": "GLM Token Plan 国际版 (订阅制)"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "GLM-4-Plus", "name": "GLM-4 Plus", "context": 128000},
+        {"id": "GLM-4-Air", "name": "GLM-4 Air", "context": 128000},
+        {"id": "GLM-4-AirX", "name": "GLM-4 AirX (fast)", "context": 128000},
+        {"id": "GLM-4-Flash", "name": "GLM-4 Flash (free)", "context": 128000},
+        {"id": "GLM-4V-Plus", "name": "GLM-4V Plus (vision)", "context": 128000},
+        {"id": "GLM-4-Long", "name": "GLM-4 Long (1M context)", "context": 1000000}
+      ],
+      "website": "https://open.bigmodel.cn",
+      "description": "Zhipu GLM API"
+    },
+    "minimax": {
+      "name": "MiniMax",
+      "variants": {
+        "api": {
+          "base_url": "https://api.minimax.chat/v1",
+          "description": "MiniMax API (国际版)"
+        },
+        "api-cn": {
+          "base_url": "https://api.minimaxi.com/v1",
+          "description": "MiniMax API (中国版)"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "MiniMax-M1", "name": "MiniMax M1", "context": 1000000, "reasoning": true},
+        {"id": "MiniMax-Text-01", "name": "MiniMax Text 01", "context": 1000000},
+        {"id": "abab7-chat", "name": "Abab 7 Chat", "context": 32000}
+      ],
+      "website": "https://platform.minimaxi.com",
+      "description": "MiniMax API"
+    },
+    "xiaomimimo": {
+      "name": "Xiaomi MiMo",
+      "variants": {
+        "token-plan-cn": {
+          "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+          "description": "MiMo Token Plan 中国区 (订阅制)"
+        },
+        "token-plan-global": {
+          "base_url": "https://token-plan.xiaomimimo.com/v1",
+          "description": "MiMo Token Plan 国际版 (订阅制)"
+        },
+        "api": {
+          "base_url": "https://api.xiaomimimo.com/v1",
+          "description": "MiMo API Plan (按量付费)"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "mimo-v2.5-pro", "name": "MiMo V2.5 Pro", "context": 1000000, "reasoning": true},
+        {"id": "mimo-v2.5", "name": "MiMo V2.5", "context": 1000000, "reasoning": true}
+      ],
+      "website": "https://mimo.xiaomi.com",
+      "description": "Xiaomi MiMo API"
+    },
+    "zai": {
+      "name": "ZAI",
+      "variants": {
+        "api": {
+          "base_url": "https://api.zai.dev/v1",
+          "description": "ZAI API"
+        }
+      },
+      "protocol": "openai-compatible",
+      "models": [
+        {"id": "zai-1", "name": "ZAI-1", "context": 128000}
+      ],
+      "website": "https://zai.dev",
+      "description": "ZAI API"
+    },
     "openai": {
       "name": "OpenAI",
-      "base_url": "https://api.openai.com/v1",
+      "variants": {
+        "api": {
+          "base_url": "https://api.openai.com/v1",
+          "description": "OpenAI API"
+        }
+      },
       "protocol": "openai",
-      "models": ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+      "models": [
+        {"id": "gpt-4.1", "name": "GPT-4.1", "context": 1047576},
+        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "context": 1047576},
+        {"id": "gpt-4.1-nano", "name": "GPT-4.1 Nano", "context": 1047576},
+        {"id": "o3", "name": "o3", "context": 200000, "reasoning": true},
+        {"id": "o3-mini", "name": "o3 Mini", "context": 200000, "reasoning": true},
+        {"id": "o4-mini", "name": "o4 Mini", "context": 200000, "reasoning": true}
+      ],
       "website": "https://platform.openai.com",
       "description": "OpenAI API"
     },
     "anthropic": {
       "name": "Anthropic",
-      "base_url": "https://api.anthropic.com",
+      "variants": {
+        "api": {
+          "base_url": "https://api.anthropic.com",
+          "description": "Anthropic API"
+        }
+      },
       "protocol": "anthropic",
-      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-haiku-4-5-20250506"],
+      "models": [
+        {"id": "claude-opus-4-20250514", "name": "Claude Opus 4", "context": 200000},
+        {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "context": 200000},
+        {"id": "claude-haiku-4-5-20250506", "name": "Claude Haiku 4.5", "context": 200000}
+      ],
       "website": "https://console.anthropic.com",
       "description": "Anthropic Claude API"
     },
-    "deepseek": {
-      "name": "DeepSeek",
-      "base_url": "https://api.deepseek.com/v1",
-      "protocol": "openai-compatible",
-      "models": ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-r1", "deepseek-v3"],
-      "website": "https://platform.deepseek.com",
-      "description": "DeepSeek API"
-    },
     "google-gemini": {
       "name": "Google Gemini",
-      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "variants": {
+        "api": {
+          "base_url": "https://generativelanguage.googleapis.com/v1beta",
+          "description": "Google Gemini API"
+        }
+      },
       "protocol": "gemini",
-      "models": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+      "models": [
+        {"id": "gemini-2.5-pro-preview-05-06", "name": "Gemini 2.5 Pro", "context": 1048576, "reasoning": true},
+        {"id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash", "context": 1048576, "reasoning": true},
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "context": 1048576}
+      ],
       "website": "https://aistudio.google.com",
       "description": "Google Gemini API"
     },
-    "zhipu-glm": {
-      "name": "GLM (Zhipu)",
-      "base_url": "https://open.bigmodel.cn/api/paas/v4",
-      "protocol": "openai-compatible",
-      "models": ["GLM-5.2", "GLM-5-Turbo", "GLM-4-Flash", "GLM-4-Plus"],
-      "website": "https://open.bigmodel.cn",
-      "description": "Zhipu GLM API"
-    },
-    "xai": {
-      "name": "xAI (Grok)",
-      "base_url": "https://api.x.ai/v1",
-      "protocol": "openai-compatible",
-      "models": ["grok-3", "grok-3-mini", "grok-2"],
-      "website": "https://console.x.ai",
-      "description": "xAI Grok API"
-    },
-    "moonshot": {
-      "name": "Moonshot (Kimi)",
-      "base_url": "https://api.moonshot.cn/v1",
-      "protocol": "openai-compatible",
-      "models": ["moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"],
-      "website": "https://platform.moonshot.cn",
-      "description": "Moonshot Kimi API"
-    },
-    "siliconflow": {
-      "name": "SiliconFlow",
-      "base_url": "https://api.siliconflow.cn/v1",
-      "protocol": "openai-compatible",
-      "models": ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-72B-Instruct", "meta-llama/Meta-Llama-3.1-70B-Instruct"],
-      "website": "https://siliconflow.cn",
-      "description": "SiliconFlow model hub"
-    },
-    "openrouter": {
-      "name": "OpenRouter",
-      "base_url": "https://openrouter.ai/api/v1",
-      "protocol": "openai-compatible",
-      "models": ["anthropic/claude-sonnet-4", "openai/gpt-4o", "google/gemini-2.5-pro", "deepseek/deepseek-r1"],
-      "website": "https://openrouter.ai",
-      "description": "Unified API for multiple providers"
-    },
-    "together": {
-      "name": "Together AI",
-      "base_url": "https://api.together.xyz/v1",
-      "protocol": "openai-compatible",
-      "models": ["meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo", "deepseek-ai/DeepSeek-V3"],
-      "website": "https://api.together.xyz",
-      "description": "Together AI inference platform"
-    },
-    "fireworks": {
-      "name": "Fireworks AI",
-      "base_url": "https://api.fireworks.ai/inference/v1",
-      "protocol": "openai-compatible",
-      "models": ["accounts/fireworks/models/llama-v3p1-405b-instruct", "accounts/fireworks/models/deepseek-v3"],
-      "website": "https://fireworks.ai",
-      "description": "Fireworks AI inference"
-    },
     "volcengine": {
       "name": "Volcengine (Doubao)",
-      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "variants": {
+        "api": {
+          "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+          "description": "火山引擎 API"
+        }
+      },
       "protocol": "openai-compatible",
-      "models": ["doubao-1.5-pro-256k", "doubao-1.5-lite-32k", "deepseek-r1"],
+      "models": [
+        {"id": "doubao-1.5-pro-256k", "name": "Doubao 1.5 Pro 256K", "context": 256000},
+        {"id": "doubao-1.5-lite-32k", "name": "Doubao 1.5 Lite 32K", "context": 32000},
+        {"id": "deepseek-r1", "name": "DeepSeek R1 (via Volcengine)", "context": 65536, "reasoning": true},
+        {"id": "deepseek-v3", "name": "DeepSeek V3 (via Volcengine)", "context": 65536}
+      ],
       "website": "https://console.volcengine.com/ark",
       "description": "ByteDance Volcengine API"
     },
-    "baidu-qianfan": {
-      "name": "Baidu Qianfan",
-      "base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
-      "protocol": "openai-compatible",
-      "models": ["ernie-4.5-8k", "ernie-4.0-8k", "ernie-3.5-8k"],
-      "website": "https://qianfan.cloud.baidu.com",
-      "description": "Baidu ERNIE API"
-    },
     "alibaba-qwen": {
       "name": "Alibaba Qwen",
-      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "variants": {
+        "api": {
+          "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+          "description": "通义千问 API"
+        }
+      },
       "protocol": "openai-compatible",
-      "models": ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-vl-max"],
+      "models": [
+        {"id": "qwen3-235b-a22b", "name": "Qwen3 235B", "context": 131072, "reasoning": true},
+        {"id": "qwen3-32b", "name": "Qwen3 32B", "context": 131072, "reasoning": true},
+        {"id": "qwen-max", "name": "Qwen Max", "context": 131072},
+        {"id": "qwen-plus", "name": "Qwen Plus", "context": 131072},
+        {"id": "qwen-turbo", "name": "Qwen Turbo", "context": 131072}
+      ],
       "website": "https://dashscope.aliyun.com",
       "description": "Alibaba Qwen API"
     },
-    "minimax": {
-      "name": "MiniMax",
-      "base_url": "https://api.minimax.chat/v1",
+    "siliconflow": {
+      "name": "SiliconFlow",
+      "variants": {
+        "api": {
+          "base_url": "https://api.siliconflow.cn/v1",
+          "description": "SiliconFlow API (国内)"
+        },
+        "api-global": {
+          "base_url": "https://api.siliconflow.com/v1",
+          "description": "SiliconFlow API (国际)"
+        }
+      },
       "protocol": "openai-compatible",
-      "models": ["MiniMax-Text-01", "abab6.5s-chat"],
-      "website": "https://platform.minimaxi.com",
-      "description": "MiniMax API"
-    },
-    "mistral": {
-      "name": "Mistral AI",
-      "base_url": "https://api.mistral.ai/v1",
-      "protocol": "openai-compatible",
-      "models": ["mistral-large-latest", "mistral-medium-latest", "codestral-latest"],
-      "website": "https://console.mistral.ai",
-      "description": "Mistral AI API"
-    },
-    "perplexity": {
-      "name": "Perplexity",
-      "base_url": "https://api.perplexity.ai",
-      "protocol": "openai-compatible",
-      "models": ["sonar-pro", "sonar", "sonar-reasoning-pro"],
-      "website": "https://www.perplexity.ai",
-      "description": "Perplexity AI API"
-    },
-    "xiamimimo": {
-      "name": "Xiaomi MiMo",
-      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
-      "protocol": "openai-compatible",
-      "models": ["mimo-v2.5-pro", "mimo-v2.5"],
-      "website": "https://mimo.xiaomi.com",
-      "description": "Xiaomi MiMo API"
+      "models": [
+        {"id": "deepseek-ai/DeepSeek-V3-0324", "name": "DeepSeek V3", "context": 65536},
+        {"id": "deepseek-ai/DeepSeek-R1", "name": "DeepSeek R1", "context": 65536, "reasoning": true},
+        {"id": "Qwen/Qwen3-235B-A22B", "name": "Qwen3 235B", "context": 131072, "reasoning": true},
+        {"id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct", "name": "Llama 4 Maverick", "context": 131072}
+      ],
+      "website": "https://siliconflow.cn",
+      "description": "SiliconFlow model hub"
     },
     "groq": {
       "name": "Groq",
-      "base_url": "https://api.groq.com/openai/v1",
+      "variants": {
+        "api": {
+          "base_url": "https://api.groq.com/openai/v1",
+          "description": "Groq API (fast inference)"
+        }
+      },
       "protocol": "openai-compatible",
-      "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+      "models": [
+        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "context": 128000},
+        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant", "context": 128000},
+        {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill 70B", "context": 128000, "reasoning": true}
+      ],
       "website": "https://console.groq.com",
       "description": "Groq fast inference"
-    },
-    "cerebras": {
-      "name": "Cerebras",
-      "base_url": "https://api.cerebras.ai/v1",
-      "protocol": "openai-compatible",
-      "models": ["llama3.3-70b", "llama3.1-8b"],
-      "website": "https://cloud.cerebras.ai",
-      "description": "Cerebras fast inference"
-    },
-    "sambanova": {
-      "name": "SambaNova",
-      "base_url": "https://api.sambanova.ai/v1",
-      "protocol": "openai-compatible",
-      "models": ["Meta-Llama-3.1-405B-Instruct", "DeepSeek-V3-0324"],
-      "website": "https://cloud.sambanova.ai",
-      "description": "SambaNova fast inference"
     }
   }
 }
