@@ -25,18 +25,25 @@ Your API subscriptions are the source of truth. Agents come and go — your prov
 
 ## Install
 
-**One-line install** (macOS/Linux):
+### Homebrew (macOS/Linux)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/jaxtonzhc/agent-provider-manager/main/install.sh | bash
+brew tap jaxtonzhc/tap
+brew install apm
 ```
 
-Or with pip/pipx:
+### pip / pipx
 
 ```bash
 pip install agent-provider-manager
 # or
 pipx install agent-provider-manager
+```
+
+### One-line script
+
+```bash
+curl -sSL https://raw.githubusercontent.com/jaxtonzhc/agent-provider-manager/main/install.sh | bash
 ```
 
 ## Quick Start
