@@ -188,10 +188,12 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
                 return
 
         url = args.url
+        interactive = sys.stdin.isatty()
         if not url:
-            if not sys.stdin.isatty():
+            if not interactive:
                 print("  Error: --url required for custom providers in non-interactive mode.")
                 return
+            from apm.colors import dim
             print(f"\n  {bold('Custom Provider Setup')}")
             print("  " + "─" * 40)
             url = input("  Base URL (e.g. https://api.example.com/v1): ").strip()
@@ -199,11 +201,19 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
                 print("  Cancelled.")
                 return
 
+        anthro_url = None
+        if interactive and not args.url:
+            raw_anthro = input(
+                f"  Anthropic Base URL {dim('(Enter to skip)')}: "
+            ).strip()
+            if raw_anthro:
+                anthro_url = raw_anthro
+
         models: list[str] = []
         if args.models:
             models = [m.strip() for m in args.models.split(",") if m.strip()]
 
-        if not models and sys.stdin.isatty():
+        if not models and interactive:
             print(f"\n  Fetching models from {url}...")
             from apm.providers import fetch_models
             fetched = fetch_models(url, key)
@@ -224,15 +234,20 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
                             if 0 <= idx < len(fetched):
                                 models.append(fetched[idx])
             else:
-                raw = input("  Models (comma-separated, or press Enter to skip): ").strip()
+                raw = input("  Models (comma-separated, or Enter to skip): ").strip()
                 if raw:
                     models = [m.strip() for m in raw.split(",") if m.strip()]
 
         alias = getattr(args, "alias", None)
         protocol = args.protocol or "openai-compatible"
-        slug = add(name, url, key, protocol, models, alias=alias)
+        slug = add(
+            name, url, key, protocol, models,
+            anthropic_base_url=anthro_url, alias=alias,
+        )
         print(f"\n  {green('✓')} Added provider: {bold(slug)}")
         print(f"    URL: {url}")
+        if anthro_url:
+            print(f"    Anthropic URL: {anthro_url}")
         if models:
             shown = ", ".join(models[:5])
             extra = f" (+{len(models) - 5} more)" if len(models) > 5 else ""
