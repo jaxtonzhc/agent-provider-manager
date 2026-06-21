@@ -10,7 +10,17 @@ from pathlib import Path
 
 from apm import __version__
 from apm.agents.registry import ADAPTERS
-from apm.config import APM_DIR, LOG_FILE, PROVIDERS_FILE
+from apm.config import (
+    APM_DIR,
+    CLAUDE_CODE_CONFIG,
+    CODEX_CONFIG,
+    HERMES_CONFIG,
+    LOG_FILE,
+    OPENCLAW_CONFIG,
+    PROVIDERS_FILE,
+    WORKBUDDY_CONFIG,
+    ZCODE_CONFIG,
+)
 
 
 def run_diagnostics(fix: bool = False) -> None:
@@ -96,11 +106,11 @@ def run_diagnostics(fix: bool = False) -> None:
 def _get_agent_config_path(name: str) -> Path | None:
     """Get the primary config path for an agent."""
     paths = {
-        "claude-code": Path.home() / ".claude" / "settings.json",
-        "codex": Path.home() / ".codex" / "config.toml",
-        "hermes": Path.home() / ".hermes" / "config.yaml",
-        "openclaw": Path.home() / ".openclaw" / "openclaw.json",
-        "zcode": Path.home() / ".zcode" / "v2" / "config.json",
-        "workbuddy": Path.home() / ".workbuddy" / "models.json",
+        "claude-code": CLAUDE_CODE_CONFIG,
+        "codex": CODEX_CONFIG,
+        "hermes": HERMES_CONFIG,
+        "openclaw": OPENCLAW_CONFIG,
+        "zcode": ZCODE_CONFIG,
+        "workbuddy": WORKBUDDY_CONFIG,
     }
     return paths.get(name)

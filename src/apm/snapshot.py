@@ -14,34 +14,29 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from apm.agents.registry import ADAPTERS
-from apm.config import APM_DIR
+from apm.config import (
+    APM_DIR,
+    CLAUDE_CODE_CONFIG,
+    CODEX_AUTH,
+    CODEX_CONFIG,
+    HERMES_CONFIG,
+    HERMES_ENV,
+    OPENCLAW_CONFIG,
+    WORKBUDDY_CONFIG,
+    ZCODE_CONFIG,
+)
 from apm.detect import get_installed_agents
 
 SNAPSHOTS_DIR = APM_DIR / "snapshots"
 
 # Map agent name → list of config files to snapshot
 AGENT_CONFIG_FILES: dict[str, list[Path]] = {
-    "claude-code": [
-        Path.home() / ".claude" / "settings.json",
-    ],
-    "codex": [
-        Path.home() / ".codex" / "config.toml",
-        Path.home() / ".codex" / "auth.json",
-    ],
-    "hermes": [
-        Path.home() / ".hermes" / "config.yaml",
-        Path.home() / ".hermes" / ".env",
-    ],
-    "openclaw": [
-        Path.home() / ".openclaw" / "openclaw.json",
-    ],
-    "zcode": [
-        Path.home() / ".zcode" / "v2" / "config.json",
-    ],
-    "workbuddy": [
-        Path.home() / ".workbuddy" / "models.json",
-    ],
+    "claude-code": [CLAUDE_CODE_CONFIG],
+    "codex": [CODEX_CONFIG, CODEX_AUTH],
+    "hermes": [HERMES_CONFIG, HERMES_ENV],
+    "openclaw": [OPENCLAW_CONFIG],
+    "zcode": [ZCODE_CONFIG],
+    "workbuddy": [WORKBUDDY_CONFIG],
 }
 
 

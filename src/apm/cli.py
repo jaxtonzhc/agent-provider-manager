@@ -69,8 +69,11 @@ def cmd_provider(args: argparse.Namespace) -> None:
         print_detail(args.name)
     elif sub == "use":
         from apm.providers import set_active
-        set_active(args.name)
-        print(f"  Active provider set to: {args.name}")
+        try:
+            set_active(args.name)
+            print(f"  Active provider set to: {args.name}")
+        except ValueError as e:
+            print(f"  Error: {e}")
     elif sub == "import":
         _cmd_provider_import(args)
     elif sub == "known":

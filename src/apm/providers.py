@@ -21,8 +21,12 @@ def _load() -> dict:
     """Load providers.json."""
     if not PROVIDERS_FILE.exists():
         return {"providers": {}, "active_provider": None}
-    with open(PROVIDERS_FILE) as f:
-        return json.load(f)
+    try:
+        with open(PROVIDERS_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to load providers.json: %s", e)
+        return {"providers": {}, "active_provider": None}
 
 
 def _save(data: dict) -> None:
@@ -232,7 +236,7 @@ def _guess_provider_slug(url: str) -> str | None:
         "minimax.chat": "minimax",
         "mistral.ai": "mistral",
         "perplexity.ai": "perplexity",
-        "xiaomimimo.com": "xiamimimo",
+        "xiaomimimo.com": "xiaomimimo",
         "groq.com": "groq",
         "cerebras.ai": "cerebras",
         "sambanova.ai": "sambanova",

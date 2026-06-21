@@ -51,11 +51,16 @@ def sync_provider(
         return [{"agent": None, "status": "warning", "message": "No installed agents found"}]
 
     # Auto-snapshot before sync (unless dry-run)
+    snapshot_name = None
     if not dry_run:
-        from apm.snapshot import save_snapshot
-        snapshot_name = f"auto-pre-sync-{provider_name}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        save_snapshot(name=snapshot_name, agents=targets)
-        logger.info("Auto-snapshot saved: %s", snapshot_name)
+        try:
+            from apm.snapshot import save_snapshot
+            snapshot_name = f"auto-pre-sync-{provider_name}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            save_snapshot(name=snapshot_name, agents=targets)
+            logger.info("Auto-snapshot saved: %s", snapshot_name)
+        except Exception as e:
+            logger.warning("Auto-snapshot failed (sync will continue): %s", e)
+            snapshot_name = None
 
     results: list[dict] = []
     for agent_name in targets:
