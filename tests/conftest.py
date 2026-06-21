@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -22,13 +21,14 @@ def mock_config(tmp_apm_dir):
     """Mock config paths to use temp directory."""
     providers_file = tmp_apm_dir / "providers.json"
     sync_state_file = tmp_apm_dir / "sync-state.json"
-    with patch("apm.config.APM_DIR", tmp_apm_dir), \
-         patch("apm.config.PROVIDERS_FILE", providers_file), \
-         patch("apm.config.SYNC_STATE_FILE", sync_state_file), \
-         patch("apm.providers.APM_DIR", tmp_apm_dir), \
-         patch("apm.providers.PROVIDERS_FILE", providers_file), \
-         patch("apm.sync.APM_DIR", tmp_apm_dir), \
-         patch("apm.sync.SYNC_STATE_FILE", sync_state_file):
+    with (
+        patch("apm.config.APM_DIR", tmp_apm_dir),
+        patch("apm.config.PROVIDERS_FILE", providers_file),
+        patch("apm.config.SYNC_STATE_FILE", sync_state_file),
+        patch("apm.providers.APM_DIR", tmp_apm_dir),
+        patch("apm.providers.PROVIDERS_FILE", providers_file),
+        patch("apm.sync.SYNC_STATE_FILE", sync_state_file),
+    ):
         yield tmp_apm_dir
 
 
@@ -53,20 +53,26 @@ def mock_agent_config(tmp_path):
     claude_dir = tmp_path / ".claude"
     claude_dir.mkdir()
     claude_settings = claude_dir / "settings.json"
-    claude_settings.write_text(json.dumps({
-        "env": {
-            "ANTHROPIC_AUTH_TOKEN": "sk-claude-test",
-            "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
-            "ANTHROPIC_MODEL": "claude-sonnet-4",
-        }
-    }))
+    claude_settings.write_text(
+        json.dumps(
+            {
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "sk-claude-test",
+                    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+                    "ANTHROPIC_MODEL": "claude-sonnet-4",
+                }
+            }
+        )
+    )
     configs["claude_code"] = claude_settings
 
     # Codex
     codex_dir = tmp_path / ".codex"
     codex_dir.mkdir()
     codex_config = codex_dir / "config.toml"
-    codex_config.write_text('model_provider = "custom"\n\n[model_providers.custom]\nwire_api = "responses"\n')
+    codex_config.write_text(
+        'model_provider = "custom"\n\n[model_providers.custom]\nwire_api = "responses"\n'
+    )
     codex_auth = codex_dir / "auth.json"
     codex_auth.write_text(json.dumps({"OPENAI_API_KEY": "sk-codex-test"}))
     configs["codex_config"] = codex_config
@@ -76,7 +82,11 @@ def mock_agent_config(tmp_path):
     hermes_dir = tmp_path / ".hermes"
     hermes_dir.mkdir()
     hermes_config = hermes_dir / "config.yaml"
-    hermes_config.write_text("model:\n  default: test-model\n  provider: test\n  base_url: https://api.test.com/v1\n  api_key: sk-hermes-test\n")
+    hermes_yaml = (
+        "model:\n  default: test-model\n  provider: test\n"
+        "  base_url: https://api.test.com/v1\n  api_key: sk-hermes-test\n"
+    )
+    hermes_config.write_text(hermes_yaml)
     hermes_env = hermes_dir / ".env"
     hermes_env.write_text("TEST_API_KEY=sk-hermes-test\n")
     configs["hermes_config"] = hermes_config
@@ -86,58 +96,125 @@ def mock_agent_config(tmp_path):
     openclaw_dir = tmp_path / ".openclaw"
     openclaw_dir.mkdir()
     openclaw_config = openclaw_dir / "openclaw.json"
-    openclaw_config.write_text(json.dumps({
-        "models": {
-            "mode": "merge",
-            "providers": {
-                "test-provider": {
-                    "baseUrl": "https://api.test.com/v1",
-                    "api": "openai-completions",
-                    "apiKey": "sk-openclaw-test",
-                    "models": [{"id": "test-model", "name": "Test"}],
+    openclaw_config.write_text(
+        json.dumps(
+            {
+                "models": {
+                    "mode": "merge",
+                    "providers": {
+                        "test-provider": {
+                            "baseUrl": "https://api.test.com/v1",
+                            "api": "openai-completions",
+                            "apiKey": "sk-openclaw-test",
+                            "models": [{"id": "test-model", "name": "Test"}],
+                        }
+                    },
                 }
             }
-        }
-    }))
+        )
+    )
     configs["openclaw_config"] = openclaw_config
 
     # ZCode
     zcode_dir = tmp_path / ".zcode" / "v2"
     zcode_dir.mkdir(parents=True)
     zcode_config = zcode_dir / "config.json"
-    zcode_config.write_text(json.dumps({
-        "provider": {
-            "test-uuid": {
-                "name": "Test",
-                "kind": "openai-compatible",
-                "options": {
-                    "apiKey": "sk-zcode-test",
-                    "baseURL": "https://api.test.com/v1",
-                    "apiKeyRequired": True,
-                },
-                "enabled": True,
-                "models": {},
+    zcode_config.write_text(
+        json.dumps(
+            {
+                "provider": {
+                    "test-uuid": {
+                        "name": "Test",
+                        "kind": "openai-compatible",
+                        "options": {
+                            "apiKey": "sk-zcode-test",
+                            "baseURL": "https://api.test.com/v1",
+                            "apiKeyRequired": True,
+                        },
+                        "enabled": True,
+                        "models": {},
+                    }
+                }
             }
-        }
-    }))
+        )
+    )
     configs["zcode_config"] = zcode_config
 
     # WorkBuddy
     workbuddy_dir = tmp_path / ".workbuddy"
     workbuddy_dir.mkdir()
     workbuddy_config = workbuddy_dir / "models.json"
-    workbuddy_config.write_text(json.dumps([{
-        "id": "test-model",
-        "name": "Test Model",
-        "vendor": "Custom",
-        "url": "https://api.test.com/v1",
-        "apiKey": "sk-workbuddy-test",
-        "supportsToolCall": True,
-        "supportsImages": False,
-        "supportsReasoning": True,
-        "useCustomProtocol": False,
-        "reasoning": {"supportedEfforts": ["medium", "high"]},
-    }]))
+    workbuddy_config.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "test-model",
+                    "name": "Test Model",
+                    "vendor": "Custom",
+                    "url": "https://api.test.com/v1",
+                    "apiKey": "sk-workbuddy-test",
+                    "supportsToolCall": True,
+                    "supportsImages": False,
+                    "supportsReasoning": True,
+                    "useCustomProtocol": False,
+                    "reasoning": {"supportedEfforts": ["medium", "high"]},
+                }
+            ]
+        )
+    )
     configs["workbuddy_config"] = workbuddy_config
+
+    # Cursor
+    cursor_dir = tmp_path / ".cursor"
+    cursor_dir.mkdir()
+    cursor_settings = cursor_dir / "settings.json"
+    cursor_settings.write_text(
+        json.dumps({
+            "openai.baseUrl": "https://api.test.com/v1",
+            "openai.apiKey": "sk-cursor-test",
+            "openai.model": "gpt-4",
+        })
+    )
+    configs["cursor_settings"] = cursor_settings
+
+    # Aider
+    aider_conf = tmp_path / ".aider.conf.yml"
+    aider_conf.write_text("openai-api-base: https://api.test.com/v1\n")
+    aider_env = tmp_path / ".aider.env"
+    aider_env.write_text("OPENAI_API_KEY=sk-aider-test\n")
+    configs["aider_conf"] = aider_conf
+    configs["aider_env"] = aider_env
+
+    # Pi
+    pi_dir = tmp_path / ".pi" / "agent"
+    pi_dir.mkdir(parents=True)
+    pi_config = pi_dir / "models.json"
+    pi_config.write_text(json.dumps({
+        "providers": {
+            "test-prov": {
+                "baseUrl": "https://api.test.com/v1",
+                "api": "openai-completions",
+                "apiKey": "sk-pi-test",
+                "models": [],
+            }
+        }
+    }))
+    configs["pi_config"] = pi_config
+
+    # OMP
+    omp_dir = tmp_path / ".omp" / "agent"
+    omp_dir.mkdir(parents=True)
+    omp_config = omp_dir / "models.json"
+    omp_config.write_text(json.dumps({
+        "providers": {
+            "test-prov": {
+                "baseUrl": "https://api.test.com/v1",
+                "api": "openai-completions",
+                "apiKey": "sk-omp-test",
+                "models": [],
+            }
+        }
+    }))
+    configs["omp_config"] = omp_config
 
     return configs

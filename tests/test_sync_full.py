@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,7 +10,6 @@ from apm.sync import (
     _format_change,
     _load_state,
     _save_state,
-    get_status,
     sync_provider,
 )
 
@@ -26,8 +24,10 @@ def mock_sync_deps(mock_config):
         "protocol": "openai-compatible",
         "models": ["model-a"],
     }
-    with patch("apm.sync.get_provider", return_value=provider), \
-         patch("apm.sync.get_installed_agents", return_value=["test-agent"]):
+    with (
+        patch("apm.sync.get_provider", return_value=provider),
+        patch("apm.sync.get_installed_agents", return_value=["test-agent"]),
+    ):
         yield provider
 
 
@@ -40,14 +40,18 @@ class TestSyncProvider:
         assert "not found" in results[0]["message"]
 
     def test_no_installed_agents(self, mock_config):
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.get_installed_agents", return_value=[]):
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.get_installed_agents", return_value=[]),
+        ):
             results = sync_provider("test")
         assert results[0]["status"] == "warning"
 
     def test_unknown_agent(self, mock_config):
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.get_installed_agents", return_value=["unknown"]):
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.get_installed_agents", return_value=["unknown"]),
+        ):
             results = sync_provider("test", agents=["unknown"])
         assert results[0]["status"] == "error"
 
@@ -55,9 +59,11 @@ class TestSyncProvider:
         mock_adapter = MagicMock()
         mock_adapter.is_installed.return_value = False
 
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}), \
-             patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": False}):
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}),
+            patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": False}),
+        ):
             results = sync_provider("test", agents=["test-agent"])
         assert results[0]["status"] == "skipped"
 
@@ -66,10 +72,15 @@ class TestSyncProvider:
         mock_adapter.is_installed.return_value = True
         mock_adapter.read_provider.return_value = {"base_url": "https://old.com"}
 
-        with patch("apm.sync.get_provider", return_value={"name": "test", "base_url": "https://new.com", "api_key": "sk-new"}), \
-             patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}), \
-             patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}), \
-             patch("apm.snapshot.save_snapshot"):
+        with (
+            patch(
+                "apm.sync.get_provider",
+                return_value={"name": "test", "base_url": "https://new.com", "api_key": "sk-new"},
+            ),
+            patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}),
+            patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}),
+            patch("apm.snapshot.save_snapshot"),
+        ):
             results = sync_provider("test", agents=["test-agent"])
 
         assert results[0]["status"] == "synced"
@@ -80,10 +91,12 @@ class TestSyncProvider:
         mock_adapter.is_installed.return_value = True
         mock_adapter.write_provider.side_effect = PermissionError("denied")
 
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}), \
-             patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}), \
-             patch("apm.snapshot.save_snapshot"):
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}),
+            patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}),
+            patch("apm.snapshot.save_snapshot"),
+        ):
             results = sync_provider("test", agents=["test-agent"])
 
         assert results[0]["status"] == "error"
@@ -94,9 +107,14 @@ class TestSyncProvider:
         mock_adapter.is_installed.return_value = True
         mock_adapter.read_provider.return_value = {"base_url": "https://old.com"}
 
-        with patch("apm.sync.get_provider", return_value={"name": "test", "base_url": "https://new.com"}), \
-             patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}), \
-             patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}):
+        with (
+            patch(
+                "apm.sync.get_provider",
+                return_value={"name": "test", "base_url": "https://new.com"},
+            ),
+            patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}),
+            patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}),
+        ):
             results = sync_provider("test", agents=["test-agent"], dry_run=True)
 
         assert results[0]["status"] == "dry-run"
@@ -106,19 +124,23 @@ class TestSyncProvider:
         mock_adapter = MagicMock()
         mock_adapter.is_installed.return_value = True
 
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}), \
-             patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}), \
-             patch("apm.snapshot.save_snapshot", side_effect=Exception("disk full")):
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.ADAPTERS", {"test-agent": mock_adapter}),
+            patch("apm.sync.detect_agent", return_value={"name": "test-agent", "installed": True}),
+            patch("apm.snapshot.save_snapshot", side_effect=Exception("disk full")),
+        ):
             results = sync_provider("test", agents=["test-agent"])
 
         # Should still succeed despite snapshot failure
         assert results[0]["status"] == "synced"
 
     def test_dry_run_no_snapshot(self, mock_config):
-        with patch("apm.sync.get_provider", return_value={"name": "test"}), \
-             patch("apm.sync.ADAPTERS", {}), \
-             patch("apm.snapshot.save_snapshot") as mock_snap:
+        with (
+            patch("apm.sync.get_provider", return_value={"name": "test"}),
+            patch("apm.sync.ADAPTERS", {}),
+            patch("apm.snapshot.save_snapshot") as mock_snap,
+        ):
             sync_provider("test", agents=["test-agent"], dry_run=True)
         mock_snap.assert_not_called()
 

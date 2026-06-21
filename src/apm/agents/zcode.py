@@ -10,7 +10,7 @@ import hashlib
 import json
 
 from apm.agents.base import AgentAdapter
-from apm.config import ZCODE_CONFIG
+from apm.config import ZCODE_CONFIG, atomic_write
 
 
 class ZCodeAdapter(AgentAdapter):
@@ -41,9 +41,12 @@ class ZCodeAdapter(AgentAdapter):
         return None
 
     def write_provider(self, provider: dict) -> None:
-        self.backup(ZCODE_CONFIG)
-        with open(ZCODE_CONFIG) as f:
-            data = json.load(f)
+        if ZCODE_CONFIG.exists():
+            self.backup(ZCODE_CONFIG)
+            with open(ZCODE_CONFIG) as f:
+                data = json.load(f)
+        else:
+            data = {}
 
         base_url = provider["base_url"].rstrip("/")
         slug = provider["name"].lower().replace(" ", "-")
@@ -78,5 +81,4 @@ class ZCodeAdapter(AgentAdapter):
             "models": models_dict,
         }
 
-        with open(ZCODE_CONFIG, "w") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        atomic_write(ZCODE_CONFIG, json.dumps(data, indent=2, ensure_ascii=False) + "\n")

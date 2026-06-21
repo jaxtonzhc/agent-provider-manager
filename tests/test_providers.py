@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -22,18 +19,21 @@ def tmp_apm_dir(tmp_path):
 @pytest.fixture
 def mock_config(tmp_apm_dir):
     """Mock config paths to use temp directory."""
-    with patch("apm.config.APM_DIR", tmp_apm_dir), \
-         patch("apm.config.PROVIDERS_FILE", tmp_apm_dir / "providers.json"), \
-         patch("apm.providers.APM_DIR", tmp_apm_dir), \
-         patch("apm.providers.PROVIDERS_FILE", tmp_apm_dir / "providers.json"):
+    with (
+        patch("apm.config.APM_DIR", tmp_apm_dir),
+        patch("apm.config.PROVIDERS_FILE", tmp_apm_dir / "providers.json"),
+        patch("apm.providers.APM_DIR", tmp_apm_dir),
+        patch("apm.providers.PROVIDERS_FILE", tmp_apm_dir / "providers.json"),
+    ):
         yield tmp_apm_dir
 
 
 def test_add_provider(mock_config):
     from apm.providers import add, get
 
-    slug = add("Test Provider", "https://api.test.com/v1", "sk-test123",
-               models=["model-a", "model-b"])
+    slug = add(
+        "Test Provider", "https://api.test.com/v1", "sk-test123", models=["model-a", "model-b"]
+    )
     assert slug == "test-provider"
 
     p = get("test-provider")
@@ -64,17 +64,6 @@ def test_list_providers(mock_config):
     assert "Alpha" in names
     assert "Beta" in names
 
-
-def test_set_active(mock_config):
-    from apm.providers import add, get_active, set_active
-
-    add("Alpha", "https://alpha.com/v1", "sk-a")
-    add("Beta", "https://beta.com/v1", "sk-b")
-
-    set_active("beta")
-    active = get_active()
-    assert active is not None
-    assert active["name"] == "Beta"
 
 
 def test_get_nonexistent(mock_config):

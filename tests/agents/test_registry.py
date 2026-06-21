@@ -7,13 +7,15 @@ from apm.agents.registry import ADAPTERS, get_adapter, get_all_adapters
 
 def test_all_adapters_registered():
     adapters = get_all_adapters()
-    assert len(adapters) == 6
+    assert len(adapters) == 10
     assert "claude-code" in adapters
     assert "codex" in adapters
+    assert "cursor" in adapters
     assert "hermes" in adapters
     assert "openclaw" in adapters
     assert "zcode" in adapters
     assert "workbuddy" in adapters
+    assert "aider" in adapters
 
 
 def test_get_adapter_by_name():

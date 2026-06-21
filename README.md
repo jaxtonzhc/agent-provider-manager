@@ -20,7 +20,7 @@ Your API subscriptions are the source of truth. Agents come and go — your prov
        ├──────────────→ Cursor
        ├──────────────→ Hermes
        ├──────────────→ ZCode
-       └──────────────→ ... (19 agents supported)
+       └──────────────→ ... (15 agents supported)
 ```
 
 ## Install
@@ -42,17 +42,14 @@ pipx install agent-provider-manager
 ## Quick Start
 
 ```bash
-# 1. Scan installed agents
-apm scan
+# Interactive setup (recommended for first-time users)
+apm init
 
-# 2. Add a provider (uses built-in registry — just provide the key!)
-apm provider add deepseek --key sk-xxx
-
-# 3. Sync to all agents
-apm sync deepseek
-
-# 4. Check status
-apm status
+# Or step by step:
+apm scan                                # 1. Scan installed agents
+apm provider add deepseek               # 2. Add a provider (key entered interactively)
+apm sync deepseek                       # 3. Sync to all agents
+apm status                              # 4. Check status
 ```
 
 ## Commands
@@ -61,6 +58,7 @@ apm status
 
 | Command | Description |
 |---------|-------------|
+| `apm init` | Interactive setup guide |
 | `apm scan` | Scan installed agents |
 | `apm status` | Show current provider for each agent |
 | `apm doctor [--fix]` | Diagnose and fix issues |
@@ -69,12 +67,17 @@ apm status
 
 | Command | Description |
 |---------|-------------|
-| `apm provider add <name> --key <key>` | Add provider (auto-fills URL from registry) |
-| `apm provider add <name> --url <url> --key <key>` | Add custom provider |
+| `apm provider add` | Interactive provider selection from registry |
+| `apm provider add <name>` | Add provider by name (key entered interactively) |
+| `apm provider add <name> --key-env VAR` | Add provider with key from env var |
+| `apm provider add <name> --url <url>` | Add custom provider (not in registry) |
+| `apm provider add <name> --alias myname` | Add with custom alias |
+| `apm provider add <name> --variant V` | Select specific variant (e.g., token-plan-cn) |
+| `apm provider test [name]` | Test provider connectivity |
+| `apm provider rename <old> <new>` | Rename a provider slug |
 | `apm provider remove <name>` | Remove a provider |
 | `apm provider list` | List configured providers |
-| `apm provider show <name>` | Show provider details |
-| `apm provider use <name>` | Set active provider |
+| `apm provider show <name>` | Show provider details (models with context/reasoning/vision) |
 | `apm provider import` | Import from installed agents |
 | `apm provider known` | List known providers from registry |
 
@@ -82,10 +85,21 @@ apm status
 
 | Command | Description |
 |---------|-------------|
+| `apm sync` | Interactive provider selection, sync to all agents |
 | `apm sync <provider>` | Sync to all installed agents |
 | `apm sync <provider> --agents a1,a2` | Sync to specific agents |
 | `apm sync <provider> --dry-run` | Preview changes |
 | `apm switch <provider>` | Alias for sync |
+| `apm undo` | Undo last sync (restore auto-snapshot) |
+
+### Snapshot
+
+| Command | Description |
+|---------|-------------|
+| `apm snapshot save [--name N]` | Save current agent configs |
+| `apm snapshot restore <name>` | Restore from a snapshot |
+| `apm snapshot list` | List saved snapshots |
+| `apm snapshot delete <name>` | Delete a snapshot |
 
 ### Maintenance
 
@@ -106,13 +120,19 @@ APM_DEBUG=1 apm status     # Via environment variable
 
 ## Built-in Registry
 
-**19 AI Agents** supported out of the box:
+**10 AI Agents** with full sync support (read + write config):
 
-Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, Hermes, OpenClaw, ZCode, WorkBuddy, Aider, Continue, Cody, Tabnine, Amazon Q, Mimocode, OpenCode, Pi, OhMyPi
+Claude Code, Codex, Cursor, Hermes, OpenClaw, ZCode, WorkBuddy, Aider, Pi, Oh-My-Pi
 
-**21 Providers** with pre-configured base URLs and models:
+**5 additional agents** known (detection only, no sync yet):
 
-OpenAI, Anthropic, DeepSeek, Google Gemini, GLM (Zhipu), xAI (Grok), Moonshot, SiliconFlow, OpenRouter, Together AI, Fireworks AI, Volcengine, Baidu Qianfan, Alibaba Qwen, MiniMax, Mistral AI, Perplexity, Xiaomi MiMo, Groq, Cerebras, SambaNova
+GitHub Copilot, Windsurf, Continue, Mimocode, OpenCode
+
+**13 Providers** with pre-configured base URLs, models, and capabilities:
+
+OpenAI, Anthropic, DeepSeek, Google Gemini, GLM (Zhipu), SiliconFlow, OpenRouter, Volcengine, Alibaba Qwen, MiniMax, Xiaomi MiMo, Groq, ZAI
+
+Each model includes metadata: context window (e.g., 1M), reasoning support, and vision capability.
 
 The registry is updated remotely — run `apm update` to get the latest providers and models.
 
@@ -120,9 +140,10 @@ The registry is updated remotely — run `apm update` to get the latest provider
 
 ```
 ~/.apm/
-├── providers.json          # Your provider configs
+├── providers.json          # Your provider configs (mode 0600)
 ├── sync-state.json         # Sync history
 ├── registry-cache.json     # Remote registry cache
+├── snapshots/              # Agent config backups (apm snapshot / apm undo)
 └── apm.log                 # Debug log
 ```
 

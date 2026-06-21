@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -16,9 +15,7 @@ from apm.registry import (
     get_provider,
     list_agents,
     list_providers,
-    load_registry,
     resolve_provider,
-    CACHE_FILE,
 )
 
 
@@ -75,6 +72,7 @@ class TestCache:
 
     def test_load_cache_expired(self, mock_cache_dir):
         import time
+
         data = {"version": 1, "_cached_at": time.time() - 100000}
         mock_cache_dir.write_text(json.dumps(data))
 

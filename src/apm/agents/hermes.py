@@ -7,7 +7,7 @@ Fields: model.api_key, model.base_url in config.yaml; env vars in .env
 from __future__ import annotations
 
 from apm.agents.base import AgentAdapter, yaml_get, yaml_set
-from apm.config import HERMES_CONFIG, HERMES_ENV
+from apm.config import HERMES_CONFIG, HERMES_ENV, atomic_write
 
 
 class HermesAdapter(AgentAdapter):
@@ -39,18 +39,18 @@ class HermesAdapter(AgentAdapter):
         base_url = provider["base_url"].rstrip("/")
         api_key = provider["api_key"]
         models = provider.get("models", [])
-        model = models[0] if models else "mimo-v2.5-pro"
+        model = models[0] if models else None
 
         text = yaml_set(text, "model", "base_url", base_url)
         text = yaml_set(text, "model", "api_key", api_key)
-        text = yaml_set(text, "model", "default", model)
+        if model:
+            text = yaml_set(text, "model", "default", model)
         text = yaml_set(
             text, "model", "provider", provider["name"].lower().replace(" ", "")
         )
 
-        HERMES_CONFIG.write_text(text)
+        atomic_write(HERMES_CONFIG, text)
 
-        # Update .env
         self.backup(HERMES_ENV)
         env_lines = HERMES_ENV.read_text().splitlines() if HERMES_ENV.exists() else []
         env_map: dict[str, str] = {}
@@ -59,12 +59,9 @@ class HermesAdapter(AgentAdapter):
                 k, v = line.split("=", 1)
                 env_map[k.strip()] = v.strip()
 
-        env_key = (
-            provider["name"].upper().replace(" ", "_").replace("-", "_") + "_API_KEY"
-        )
-        env_map[env_key] = api_key
-        env_map["XIAOMI_BASE_URL"] = base_url
+        prefix = provider["name"].upper().replace(" ", "_").replace("-", "_")
+        env_map[f"{prefix}_API_KEY"] = api_key
+        env_map[f"{prefix}_BASE_URL"] = base_url
 
-        with open(HERMES_ENV, "w") as f:
-            for k, v in env_map.items():
-                f.write(f"{k}={v}\n")
+        env_content = "".join(f"{k}={v}\n" for k, v in env_map.items())
+        atomic_write(HERMES_ENV, env_content)

@@ -134,31 +134,41 @@ def resolve_provider(name: str, api_key: str, variant: str | None = None) -> dic
     # Determine base URL from variants
     variants = reg_provider.get("variants", {})
     base_url = ""
+    anthropic_base_url = ""
 
     if variant and variant in variants:
-        base_url = variants[variant]["base_url"]
+        v = variants[variant]
+        base_url = v["base_url"]
+        anthropic_base_url = v.get("anthropic_base_url", "")
     elif variants:
-        # Default to first variant
         first_key = next(iter(variants))
-        base_url = variants[first_key]["base_url"]
+        v = variants[first_key]
+        base_url = v["base_url"]
+        anthropic_base_url = v.get("anthropic_base_url", "")
 
-    # Extract model IDs
+    # Extract model IDs and metadata
     raw_models = reg_provider.get("models", [])
     models = []
+    model_meta = {}
     for m in raw_models:
         if isinstance(m, dict):
             models.append(m["id"])
+            model_meta[m["id"]] = m
         else:
             models.append(str(m))
 
-    return {
+    result = {
         "name": reg_provider["name"],
         "base_url": base_url,
         "api_key": api_key,
         "protocol": reg_provider.get("protocol", "openai-compatible"),
         "models": models,
         "variants": variants,
+        "_model_meta": model_meta,
     }
+    if anthropic_base_url:
+        result["anthropic_base_url"] = anthropic_base_url
+    return result
 
 
 def update_registry() -> bool:

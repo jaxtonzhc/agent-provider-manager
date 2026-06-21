@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from apm.agents.base import is_port_open, yaml_get, yaml_set
 
 
@@ -66,6 +64,7 @@ class TestIsPortOpen:
 
     def test_open_port(self):
         import socket
+
         # Start a temporary server
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind(("127.0.0.1", 0))

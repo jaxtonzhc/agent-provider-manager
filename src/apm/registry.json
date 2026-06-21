@@ -13,13 +13,13 @@
       "config_paths": ["~/.codex/config.toml", "~/.codex/auth.json"],
       "protocol": "responses",
       "requires_proxy": true,
-      "proxy_note": "Most providers don't support Responses API. Requires CC Switch proxy on 127.0.0.1:15721. Install: https://github.com/nicepkg/cc-switch",
+      "proxy_note": "Most providers don't support Responses API. Requires CC Switch proxy on 127.0.0.1:15721. Install: https://github.com/farion1231/cc-switch",
       "website": "https://github.com/openai/codex",
       "description": "OpenAI's CLI coding agent (uses Responses API)"
     },
     "cursor": {
       "name": "Cursor",
-      "config_paths": ["~/.cursor/mcp.json"],
+      "config_paths": ["~/.cursor/settings.json"],
       "protocol": "openai-compatible",
       "website": "https://cursor.sh",
       "description": "AI-first code editor"
@@ -68,7 +68,7 @@
     },
     "aider": {
       "name": "Aider",
-      "config_paths": ["~/.aider.conf.yml"],
+      "config_paths": ["~/.aider.conf.yml", "~/.aider.env"],
       "protocol": "openai-compatible",
       "website": "https://aider.chat",
       "description": "AI pair programming in your terminal"
@@ -93,6 +93,20 @@
       "protocol": "openai-compatible",
       "website": "https://opencode.ai",
       "description": "Open-source coding agent"
+    },
+    "pi": {
+      "name": "Pi",
+      "config_paths": ["~/.pi/agent/models.json", "~/.pi/agent/auth.json"],
+      "protocol": "openai-compatible",
+      "website": "https://github.com/badlogic/pi-mono",
+      "description": "Multi-provider AI coding agent by Mario Zechner"
+    },
+    "omp": {
+      "name": "Oh-My-Pi",
+      "config_paths": ["~/.omp/agent/models.json", "~/.omp/agent/auth.json"],
+      "protocol": "openai-compatible",
+      "website": "https://omp.sh",
+      "description": "Terminal AI coding agent (Pi fork with LSP/DAP/browser tools)"
     }
   },
   "providers": {
@@ -101,13 +115,16 @@
       "variants": {
         "api": {
           "base_url": "https://api.deepseek.com/v1",
-          "description": "DeepSeek API (international)"
+          "anthropic_base_url": "https://api.deepseek.com/anthropic",
+          "description": "DeepSeek API"
         }
       },
       "protocol": "openai-compatible",
       "models": [
-        {"id": "deepseek-chat", "name": "DeepSeek V3", "context": 65536},
-        {"id": "deepseek-reasoner", "name": "DeepSeek R1", "context": 65536, "reasoning": true}
+        {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "context": 1048576, "reasoning": true},
+        {"id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro", "context": 1048576, "reasoning": true},
+        {"id": "deepseek-chat", "name": "DeepSeek V3 (legacy)", "context": 65536},
+        {"id": "deepseek-reasoner", "name": "DeepSeek R1 (legacy)", "context": 65536, "reasoning": true}
       ],
       "website": "https://platform.deepseek.com",
       "description": "DeepSeek API"
@@ -138,14 +155,17 @@
       "variants": {
         "api": {
           "base_url": "https://open.bigmodel.cn/api/paas/v4",
+          "anthropic_base_url": "https://open.bigmodel.cn/api/paas/v4/anthropic",
           "description": "GLM API Plan (按量付费)"
         },
         "token-plan-cn": {
           "base_url": "https://token-plan-cn.zhipu.bigmodel.cn/api/paas/v4",
+          "anthropic_base_url": "https://token-plan-cn.zhipu.bigmodel.cn/anthropic",
           "description": "GLM Token Plan 中国区 (订阅制)"
         },
         "token-plan-global": {
           "base_url": "https://token-plan.zhipu.bigmodel.cn/api/paas/v4",
+          "anthropic_base_url": "https://token-plan.zhipu.bigmodel.cn/anthropic",
           "description": "GLM Token Plan 国际版 (订阅制)"
         }
       },
@@ -155,7 +175,7 @@
         {"id": "GLM-4-Air", "name": "GLM-4 Air", "context": 128000},
         {"id": "GLM-4-AirX", "name": "GLM-4 AirX (fast)", "context": 128000},
         {"id": "GLM-4-Flash", "name": "GLM-4 Flash (free)", "context": 128000},
-        {"id": "GLM-4V-Plus", "name": "GLM-4V Plus (vision)", "context": 128000},
+        {"id": "GLM-4V-Plus", "name": "GLM-4V Plus (vision)", "context": 128000, "vision": true},
         {"id": "GLM-4-Long", "name": "GLM-4 Long (1M context)", "context": 1000000}
       ],
       "website": "https://open.bigmodel.cn",
@@ -187,21 +207,24 @@
       "variants": {
         "token-plan-cn": {
           "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+          "anthropic_base_url": "https://token-plan-cn.xiaomimimo.com/anthropic",
           "description": "MiMo Token Plan 中国区 (订阅制)"
         },
         "token-plan-global": {
           "base_url": "https://token-plan.xiaomimimo.com/v1",
+          "anthropic_base_url": "https://token-plan.xiaomimimo.com/anthropic",
           "description": "MiMo Token Plan 国际版 (订阅制)"
         },
         "api": {
           "base_url": "https://api.xiaomimimo.com/v1",
+          "anthropic_base_url": "https://api.xiaomimimo.com/anthropic",
           "description": "MiMo API Plan (按量付费)"
         }
       },
       "protocol": "openai-compatible",
       "models": [
-        {"id": "mimo-v2.5-pro", "name": "MiMo V2.5 Pro", "context": 1000000, "reasoning": true},
-        {"id": "mimo-v2.5", "name": "MiMo V2.5", "context": 1000000, "reasoning": true}
+        {"id": "mimo-v2.5-pro", "name": "MiMo V2.5 Pro", "context": 1000000, "reasoning": true, "vision": true},
+        {"id": "mimo-v2.5", "name": "MiMo V2.5", "context": 1000000, "reasoning": true, "vision": true}
       ],
       "website": "https://mimo.xiaomi.com",
       "description": "Xiaomi MiMo API"
@@ -231,8 +254,8 @@
       },
       "protocol": "openai",
       "models": [
-        {"id": "gpt-4.1", "name": "GPT-4.1", "context": 1047576},
-        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "context": 1047576},
+        {"id": "gpt-4.1", "name": "GPT-4.1", "context": 1047576, "vision": true},
+        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "context": 1047576, "vision": true},
         {"id": "gpt-4.1-nano", "name": "GPT-4.1 Nano", "context": 1047576},
         {"id": "o3", "name": "o3", "context": 200000, "reasoning": true},
         {"id": "o3-mini", "name": "o3 Mini", "context": 200000, "reasoning": true},
@@ -251,9 +274,9 @@
       },
       "protocol": "anthropic",
       "models": [
-        {"id": "claude-opus-4-20250514", "name": "Claude Opus 4", "context": 200000},
-        {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "context": 200000},
-        {"id": "claude-haiku-4-5-20250506", "name": "Claude Haiku 4.5", "context": 200000}
+        {"id": "claude-opus-4-20250514", "name": "Claude Opus 4", "context": 200000, "vision": true, "reasoning": true},
+        {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "context": 200000, "vision": true, "reasoning": true},
+        {"id": "claude-haiku-4-5-20250506", "name": "Claude Haiku 4.5", "context": 200000, "vision": true}
       ],
       "website": "https://console.anthropic.com",
       "description": "Anthropic Claude API"
@@ -268,9 +291,9 @@
       },
       "protocol": "gemini",
       "models": [
-        {"id": "gemini-2.5-pro-preview-05-06", "name": "Gemini 2.5 Pro", "context": 1048576, "reasoning": true},
-        {"id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash", "context": 1048576, "reasoning": true},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "context": 1048576}
+        {"id": "gemini-2.5-pro-preview-05-06", "name": "Gemini 2.5 Pro", "context": 1048576, "reasoning": true, "vision": true},
+        {"id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash", "context": 1048576, "reasoning": true, "vision": true},
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "context": 1048576, "vision": true}
       ],
       "website": "https://aistudio.google.com",
       "description": "Google Gemini API"

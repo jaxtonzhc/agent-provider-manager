@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from apm.agents.base import AgentAdapter
-from apm.config import WORKBUDDY_CONFIG
+from apm.config import WORKBUDDY_CONFIG, atomic_write
 
 
 class WorkBuddyAdapter(AgentAdapter):
@@ -34,24 +34,29 @@ class WorkBuddyAdapter(AgentAdapter):
         }
 
     def write_provider(self, provider: dict) -> None:
-        self.backup(WORKBUDDY_CONFIG)
+        if WORKBUDDY_CONFIG.exists():
+            self.backup(WORKBUDDY_CONFIG)
         base_url = provider["base_url"].rstrip("/")
 
+        model_meta = provider.get("_model_meta", {})
         models_list = []
         for m in provider.get("models", []):
+            meta = model_meta.get(m, {})
+            has_reasoning = meta.get("reasoning", True)
+            has_vision = meta.get("vision", False)
             models_list.append({
                 "id": m,
-                "name": m,
+                "name": meta.get("name", m),
                 "vendor": "Custom",
                 "url": base_url,
                 "apiKey": provider["api_key"],
                 "supportsToolCall": True,
-                "supportsImages": False,
-                "supportsReasoning": True,
+                "supportsImages": has_vision,
+                "supportsReasoning": has_reasoning,
                 "useCustomProtocol": False,
                 "reasoning": {
                     "supportedEfforts": ["medium", "high", "max", "xhigh"],
-                },
+                } if has_reasoning else {},
             })
 
         if not models_list:
@@ -70,5 +75,4 @@ class WorkBuddyAdapter(AgentAdapter):
                 },
             })
 
-        with open(WORKBUDDY_CONFIG, "w") as f:
-            json.dump(models_list, f, indent=2, ensure_ascii=False)
+        atomic_write(WORKBUDDY_CONFIG, json.dumps(models_list, indent=2, ensure_ascii=False) + "\n")

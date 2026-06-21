@@ -9,35 +9,15 @@ Snapshots are stored in ~/.apm/snapshots/<name>/
 from __future__ import annotations
 
 import json
-import os
 import shutil
 from datetime import datetime
-from pathlib import Path
 
-from apm.config import (
-    APM_DIR,
-    CLAUDE_CODE_CONFIG,
-    CODEX_AUTH,
-    CODEX_CONFIG,
-    HERMES_CONFIG,
-    HERMES_ENV,
-    OPENCLAW_CONFIG,
-    WORKBUDDY_CONFIG,
-    ZCODE_CONFIG,
-)
+from apm.config import AGENT_CONFIG_PATHS, APM_DIR
 from apm.detect import get_installed_agents
 
 SNAPSHOTS_DIR = APM_DIR / "snapshots"
 
-# Map agent name → list of config files to snapshot
-AGENT_CONFIG_FILES: dict[str, list[Path]] = {
-    "claude-code": [CLAUDE_CODE_CONFIG],
-    "codex": [CODEX_CONFIG, CODEX_AUTH],
-    "hermes": [HERMES_CONFIG, HERMES_ENV],
-    "openclaw": [OPENCLAW_CONFIG],
-    "zcode": [ZCODE_CONFIG],
-    "workbuddy": [WORKBUDDY_CONFIG],
-}
+AGENT_CONFIG_FILES = AGENT_CONFIG_PATHS
 
 
 def save_snapshot(
@@ -186,6 +166,25 @@ def list_snapshots() -> list[dict]:
             })
 
     return snapshots
+
+
+MAX_AUTO_SNAPSHOTS = 10
+
+
+def cleanup_auto_snapshots() -> int:
+    """Remove old auto-snapshots beyond MAX_AUTO_SNAPSHOTS. Returns count removed."""
+    if not SNAPSHOTS_DIR.exists():
+        return 0
+    autos = sorted(
+        (d for d in SNAPSHOTS_DIR.iterdir() if d.is_dir() and d.name.startswith("auto-pre-sync-")),
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    removed = 0
+    for d in autos[MAX_AUTO_SNAPSHOTS:]:
+        shutil.rmtree(d)
+        removed += 1
+    return removed
 
 
 def delete_snapshot(name: str) -> bool:

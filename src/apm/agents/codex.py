@@ -5,22 +5,20 @@ Fields: OPENAI_API_KEY in auth.json, model_providers in config.toml
 
 Codex uses OpenAI's Responses API, which most third-party providers don't support.
 A proxy is required to translate Responses API → Chat Completions API.
-
-Currently depends on CC Switch (https://github.com/nicepkg/cc-switch) running
-on 127.0.0.1:15721. Future versions may include a built-in proxy.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 
 from apm.agents.base import AgentAdapter, is_port_open
-from apm.config import CC_SWITCH_PORT, CC_SWITCH_URL, CODEX_AUTH, CODEX_CONFIG
+from apm.config import CC_SWITCH_PORT, CC_SWITCH_URL, CODEX_AUTH, CODEX_CONFIG, atomic_write
 
 logger = logging.getLogger(__name__)
 
-CC_SWITCH_INSTALL_URL = "https://github.com/nicepkg/cc-switch"
+CC_SWITCH_INSTALL_URL = "https://github.com/farion1231/cc-switch"
 
 
 class CodexAdapter(AgentAdapter):
@@ -39,32 +37,35 @@ class CodexAdapter(AgentAdapter):
             return None
 
         protocol = "openai-compatible"
+        base_url = "https://api.openai.com/v1"
         if CODEX_CONFIG.exists():
             text = CODEX_CONFIG.read_text()
             if 'wire_api = "responses"' in text:
                 protocol = "responses"
+            m = re.search(r'base_url\s*=\s*"([^"]+)"', text)
+            if m:
+                base_url = m.group(1)
 
         return {
-            "base_url": "https://api.openai.com/v1",
+            "base_url": base_url,
             "api_key": key,
             "model": None,
             "protocol": protocol,
         }
 
     def write_provider(self, provider: dict) -> None:
-        # Write auth.json
-        self.backup(CODEX_AUTH)
-        with open(CODEX_AUTH, "w") as f:
-            json.dump({"OPENAI_API_KEY": provider["api_key"]}, f, indent=2)
+        if CODEX_AUTH.exists():
+            self.backup(CODEX_AUTH)
+        CODEX_AUTH.parent.mkdir(parents=True, exist_ok=True)
+        auth_data = json.dumps({"OPENAI_API_KEY": provider["api_key"]}, indent=2)
+        atomic_write(CODEX_AUTH, auth_data + "\n")
 
-        # Update config.toml
-        self.backup(CODEX_CONFIG)
-        text = CODEX_CONFIG.read_text() if CODEX_CONFIG.exists() else ""
+        if CODEX_CONFIG.exists():
+            self.backup(CODEX_CONFIG)
 
         is_openai = "openai.com" in provider.get("base_url", "")
         wire_api = "responses" if is_openai else "chat_completions"
 
-        # For non-OpenAI providers, check CC Switch proxy
         if not is_openai:
             cc_running = is_port_open(CC_SWITCH_PORT)
             if cc_running:
@@ -72,32 +73,37 @@ class CodexAdapter(AgentAdapter):
                 logger.info("CC Switch detected, routing Codex through proxy")
             else:
                 base_for_codex = provider["base_url"]
-                # Print warning to user
+                from apm.colors import bold, red, yellow
                 print()
-                print("  ⚠  Codex requires a proxy for non-OpenAI providers")
-                print("     Codex uses Responses API, which most providers don't support.")
-                print()
-                print("     Option 1: Install CC Switch (recommended)")
-                print(f"       → {CC_SWITCH_INSTALL_URL}")
-                print("       → Enable Codex routing in CC Switch settings")
-                print(f"       → Proxy runs on {CC_SWITCH_URL}")
-                print()
-                print("     Option 2: Use OpenAI directly")
-                print("       → apm provider add openai --key sk-xxx")
-                print()
-                print("     Config written anyway — will work once proxy is running.")
+                title = bold("Codex needs CC Switch for non-OpenAI APIs")
+                url_line = f"Install: {yellow(CC_SWITCH_INSTALL_URL)}"
+                note = "Config written — will work once proxy is running."
+                print(f"  {red('┌──────────────────────────────────────────────┐')}")
+                print(f"  {red('│')} {title}")
+                print(f"  {red('│')} {url_line}")
+                print(f"  {red('│')} {note}")
+                print(f"  {red('└──────────────────────────────────────────────┘')}")
                 print()
         else:
             base_for_codex = ""
 
-        lines = ['model_provider = "custom"\n', "\n"]
-        lines.append("[model_providers.custom]\n")
-        lines.append('name = "OpenAI"\n')
-        lines.append("requires_openai_auth = true\n")
-        lines.append("supports_websockets = true\n")
-        lines.append(f'wire_api = "{wire_api}"\n')
+        # Preserve existing config, only update provider-related fields
+        text = CODEX_CONFIG.read_text() if CODEX_CONFIG.exists() else ""
+        if "[model_providers.custom]" in text:
+            text = re.sub(r'wire_api\s*=\s*"[^"]*"', f'wire_api = "{wire_api}"', text)
+            if base_for_codex:
+                if "base_url" in text:
+                    text = re.sub(r'base_url\s*=\s*"[^"]*"', f'base_url = "{base_for_codex}"', text)
+                else:
+                    text = text.rstrip() + f'\nbase_url = "{base_for_codex}"\n'
+            elif "base_url" in text and is_openai:
+                text = re.sub(r'base_url\s*=\s*"[^"]*"\n?', "", text)
+        else:
+            lines = ['model_provider = "custom"\n', "\n", "[model_providers.custom]\n",
+                     'name = "OpenAI"\n', "requires_openai_auth = true\n",
+                     "supports_websockets = true\n", f'wire_api = "{wire_api}"\n']
+            if base_for_codex:
+                lines.append(f'base_url = "{base_for_codex}"\n')
+            text = "".join(lines)
 
-        if base_for_codex:
-            lines.append(f'base_url = "{base_for_codex}"\n')
-
-        CODEX_CONFIG.write_text("".join(lines))
+        atomic_write(CODEX_CONFIG, text)

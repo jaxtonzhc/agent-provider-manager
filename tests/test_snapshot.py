@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -13,8 +12,6 @@ from apm.snapshot import (
     list_snapshots,
     restore_snapshot,
     save_snapshot,
-    SNAPSHOTS_DIR,
-    AGENT_CONFIG_FILES,
 )
 
 
@@ -50,8 +47,10 @@ def mock_agent_files(tmp_path):
 
 class TestSaveSnapshot:
     def test_save_creates_directory(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             result = save_snapshot(name="test-snap")
 
         assert result["name"] == "test-snap"
@@ -59,8 +58,10 @@ class TestSaveSnapshot:
         assert (mock_snapshot_dir / "test-snap" / "meta.json").exists()
 
     def test_save_copies_config_files(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             result = save_snapshot(name="test-snap")
 
         assert result["agents"]["claude-code"]["status"] == "saved"
@@ -68,8 +69,10 @@ class TestSaveSnapshot:
         assert (mock_snapshot_dir / "test-snap" / "claude-code" / "settings.json").exists()
 
     def test_save_multiple_agents(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code", "workbuddy"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code", "workbuddy"]),
+        ):
             result = save_snapshot(name="multi")
 
         assert "claude-code" in result["agents"]
@@ -78,15 +81,19 @@ class TestSaveSnapshot:
         assert result["agents"]["workbuddy"]["status"] == "saved"
 
     def test_save_skips_missing_files(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["nonexistent"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["nonexistent"]),
+        ):
             result = save_snapshot(name="skip-test")
 
         assert result["agents"]["nonexistent"]["status"] == "skipped"
 
     def test_save_default_name_is_timestamp(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             result = save_snapshot()
 
         # Name should be a timestamp-like string
@@ -97,8 +104,10 @@ class TestSaveSnapshot:
 class TestRestoreSnapshot:
     def test_restore_copies_files_back(self, mock_snapshot_dir, mock_agent_files):
         # Save first
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             save_snapshot(name="test-snap")
 
         # Modify the original file
@@ -119,8 +128,10 @@ class TestRestoreSnapshot:
 
     def test_restore_selective_agents(self, mock_snapshot_dir, mock_agent_files):
         # Save both agents
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code", "workbuddy"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code", "workbuddy"]),
+        ):
             save_snapshot(name="test-snap")
 
         # Restore only claude-code
@@ -137,8 +148,10 @@ class TestListSnapshots:
         assert snapshots == []
 
     def test_list_returns_snapshots(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             save_snapshot(name="snap-1")
             save_snapshot(name="snap-2")
 
@@ -150,8 +163,10 @@ class TestListSnapshots:
 
 class TestDeleteSnapshot:
     def test_delete_existing(self, mock_snapshot_dir, mock_agent_files):
-        with patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files), \
-             patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]):
+        with (
+            patch("apm.snapshot.AGENT_CONFIG_FILES", mock_agent_files),
+            patch("apm.snapshot.get_installed_agents", return_value=["claude-code"]),
+        ):
             save_snapshot(name="to-delete")
 
         assert delete_snapshot("to-delete") is True

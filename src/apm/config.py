@@ -26,6 +26,10 @@ WORKBUDDY_CONFIG = HOME / ".workbuddy" / "models.json"
 CURSOR_SETTINGS = HOME / ".cursor" / "settings.json"
 AIDER_CONFIG = HOME / ".aider.conf.yml"
 AIDER_ENV = HOME / ".aider.env"
+PI_CONFIG = HOME / ".pi" / "agent" / "models.json"
+PI_AUTH = HOME / ".pi" / "agent" / "auth.json"
+OMP_CONFIG = HOME / ".omp" / "agent" / "models.json"
+OMP_AUTH = HOME / ".omp" / "agent" / "auth.json"
 
 # CC Switch proxy
 CC_SWITCH_PORT = 15721
@@ -41,6 +45,8 @@ AGENT_CONFIG_PATHS: dict[str, list[Path]] = {
     "workbuddy": [WORKBUDDY_CONFIG],
     "cursor": [CURSOR_SETTINGS],
     "aider": [AIDER_CONFIG, AIDER_ENV],
+    "pi": [PI_CONFIG, PI_AUTH],
+    "omp": [OMP_CONFIG, OMP_AUTH],
 }
 
 
@@ -48,13 +54,16 @@ def atomic_write(path: Path, content: str, mode: int = 0o644) -> None:
     """Write content to a file atomically via temp-file + rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    closed = False
     try:
         os.write(fd, content.encode("utf-8"))
         os.close(fd)
+        closed = True
         os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
-        os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
+        if not closed:
+            os.close(fd)
         try:
             os.unlink(tmp)
         except OSError:

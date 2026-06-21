@@ -48,7 +48,9 @@ class TestBuildParser:
 
     def test_parse_provider_add_with_variant(self):
         parser = build_parser()
-        args = parser.parse_args(["provider", "add", "glm", "--key", "sk-test", "--variant", "token-plan-cn"])
+        args = parser.parse_args(
+            ["provider", "add", "glm", "--key", "sk-test", "--variant", "token-plan-cn"]
+        )
         assert args.variant == "token-plan-cn"
 
     def test_parse_snapshot_save(self):

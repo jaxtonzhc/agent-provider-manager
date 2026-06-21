@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone
 
 from apm.agents.registry import ADAPTERS
-from apm.config import APM_DIR, SYNC_STATE_FILE
+from apm.config import SYNC_STATE_FILE, atomic_write
 from apm.detect import detect_agent, get_installed_agents
 from apm.providers import get as get_provider
 
@@ -24,9 +24,7 @@ def _load_state() -> dict:
 
 def _save_state(state: dict) -> None:
     """Save sync state to disk."""
-    APM_DIR.mkdir(parents=True, exist_ok=True)
-    with open(SYNC_STATE_FILE, "w") as f:
-        json.dump(state, f, indent=2, ensure_ascii=False)
+    atomic_write(SYNC_STATE_FILE, json.dumps(state, indent=2, ensure_ascii=False) + "\n")
 
 
 def sync_provider(
@@ -39,11 +37,14 @@ def sync_provider(
     Returns:
         list of results: [{agent, status, message}]
     """
-    provider = get_provider(provider_name)
-    if not provider:
+    _provider = get_provider(provider_name)
+    if not _provider:
         return [
             {"agent": None, "status": "error", "message": f"Provider '{provider_name}' not found"}
         ]
+    provider = dict(_provider)
+    if "model_meta" in provider and "_model_meta" not in provider:
+        provider["_model_meta"] = provider["model_meta"]
 
     targets = agents if agents else get_installed_agents()
 
@@ -55,7 +56,8 @@ def sync_provider(
     if not dry_run:
         try:
             from apm.snapshot import save_snapshot
-            snapshot_name = f"auto-pre-sync-{provider_name}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            ts = datetime.now().strftime("%Y%m%d%H%M%S")
+            snapshot_name = f"auto-pre-sync-{provider_name}-{ts}"
             save_snapshot(name=snapshot_name, agents=targets)
             logger.info("Auto-snapshot saved: %s", snapshot_name)
         except Exception as e:
@@ -101,6 +103,14 @@ def sync_provider(
                 }
         _save_state(state)
 
+        try:
+            from apm.snapshot import cleanup_auto_snapshots
+            cleaned = cleanup_auto_snapshots()
+            if cleaned:
+                logger.info("Cleaned up %d old auto-snapshots", cleaned)
+        except Exception as e:
+            logger.debug("Auto-snapshot cleanup failed: %s", e)
+
     return results
 
 
@@ -129,38 +139,56 @@ def get_status() -> list[dict]:
 
 def print_status() -> None:
     """Print formatted status."""
+    from apm.colors import bold, cyan, dim, green, yellow
+    from apm.providers import list_all
+
     status = get_status()
-    print("\n  Agent Provider Status")
+    providers = list_all()
+
+    print(f"\n  {bold('Agent Provider Status')}")
     print("  " + "=" * 60)
+
+    if providers:
+        slugs = [p["slug"] for p in providers]
+        print(f"  Providers: {cyan(', '.join(slugs))}")
+    else:
+        print(f"  {yellow('No providers configured.')} Run 'apm provider add'")
+
+    print()
     for s in status:
         if not s["installed"]:
-            print(f"  ✗  {s['agent']:<15}  (not installed)")
+            print(f"  {dim('✗')}  {dim(s['agent']):<15}  {dim('(not installed)')}")
             continue
         cur = s["current"]
         if cur:
             url = cur.get("base_url", "?")
-            model = cur.get("model", "?")
-            print(f"  ✓  {s['agent']:<15}  {url}")
-            if model:
-                print(f"      model={model}")
+            model = cur.get("model")
+            model_str = f"  model={cyan(str(model))}" if model else ""
+            print(f"  {green('✓')}  {bold(s['agent']):<15}  {url}{model_str}")
         else:
-            print(f"  ✓  {s['agent']:<15}  (no provider configured)")
-        if s.get("last_sync"):
-            ts = s["last_sync"].get("synced_at", "?")[:19]
-            print(f"      last sync: {s['last_sync'].get('provider', '?')} @ {ts}")
+            print(f"  {yellow('✓')}  {s['agent']:<15}  {dim('(no provider configured)')}")
     print()
 
 
 def print_sync_results(results: list[dict], dry_run: bool = False) -> None:
     """Print formatted sync results."""
-    prefix = "[DRY RUN] " if dry_run else ""
-    print(f"\n  {prefix}Sync Results")
+    from apm.colors import bold, cyan, dim, green, red, yellow
+
+    prefix = f"{yellow('[DRY RUN]')} " if dry_run else ""
+    print(f"\n  {prefix}{bold('Sync Results')}")
     print("  " + "=" * 50)
-    icons = {"synced": "✓", "error": "✗", "skipped": "⊘", "dry-run": "→", "warning": "⚠"}
+    color_map = {
+        "synced": lambda t: f"{green('✓')}  {t}",
+        "error": lambda t: f"{red('✗')}  {t}",
+        "skipped": lambda t: f"{dim('⊘')}  {dim(t)}",
+        "dry-run": lambda t: f"{cyan('→')}  {t}",
+        "warning": lambda t: f"{yellow('⚠')}  {t}",
+    }
     for r in results:
-        icon = icons.get(r["status"], "?")
         agent = r["agent"] or "(global)"
-        print(f"  {icon}  {agent:<15}  {r['message']}")
+        msg = r["message"]
+        fmt = color_map.get(r["status"], lambda t: f"?  {t}")
+        print(f"  {fmt(f'{agent:<15}  {msg}')}")
     print()
 
 

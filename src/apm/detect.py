@@ -29,12 +29,33 @@ def get_installed_agents() -> list[str]:
 
 def print_scan_results() -> None:
     """Print formatted scan results."""
+    from apm.colors import bold, cyan, dim, green
+
     results = detect_all()
-    print("\n  Installed AI Agents")
+    print(f"\n  {bold('Installed AI Agents')} (sync-ready)")
     print("  " + "=" * 45)
     for r in results:
-        status = "✓" if r["installed"] else "✗"
-        print(f"  {status}  {r['name']:<15}")
-    print()
+        if r["installed"]:
+            print(f"  {green('✓')}  {r['name']:<15}")
+        else:
+            print(f"  {dim('✗')}  {dim(r['name'])}")
     installed = [r["name"] for r in results if r["installed"]]
-    print(f"  {len(installed)}/{len(results)} agents detected\n")
+    print(f"\n  {bold(str(len(installed)))}/{len(results)} agents detected")
+
+    detect_only = _get_detect_only_agents()
+    if detect_only:
+        print(f"\n  {cyan('Detect-only')} (no sync adapter yet):")
+        for name in detect_only:
+            print(f"  {dim('·')}  {dim(name)}")
+    print()
+
+
+def _get_detect_only_agents() -> list[str]:
+    """Return agent names known in registry but without a sync adapter."""
+    try:
+        from apm.registry import list_agents
+        registry_agents = set(list_agents().keys())
+        adapter_agents = set(ADAPTERS.keys())
+        return sorted(registry_agents - adapter_agents)
+    except Exception:
+        return []

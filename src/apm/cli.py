@@ -2,35 +2,13 @@
 
 Centralized API provider management for AI coding agents.
 Manage your API subscriptions and sync them to any agent with one command.
-
-Usage:
-    apm scan                                  Scan installed agents
-    apm status                                Show current provider status
-    apm doctor [--fix]                        Diagnose and fix issues
-
-    apm provider add <name> [--key <key>] [--url <url>] [--models m1,m2]
-    apm provider remove <name>
-    apm provider list
-    apm provider show <name>
-    apm provider use <name>
-    apm provider import                       Import from installed agents
-
-    apm sync <provider>                       Sync to all installed agents
-    apm sync <provider> --agents a1,a2        Sync to specific agents
-    apm sync <provider> --dry-run             Preview changes
-
-    apm switch <provider>                     Alias for sync (all agents)
-
-    apm update                                Update provider/agent registry
-    apm self-update                           Update apm itself
-    apm logs [--tail N]                       Show log file
-    apm agents                                List known agents
-    apm providers                             List known providers (from registry)
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
+import os
 import sys
 
 from apm import __version__
@@ -54,7 +32,7 @@ def cmd_provider(args: argparse.Namespace) -> None:
     sub = args.subcommand
     if not sub:
         print("  Usage: apm provider <subcommand>")
-        print("  Subcommands: add, remove, list, show, use, import")
+        print("  Subcommands: add, remove, rename, list, show, test, import, known")
         return
 
     if sub == "add":
@@ -67,58 +45,146 @@ def cmd_provider(args: argparse.Namespace) -> None:
     elif sub == "show":
         from apm.providers import print_detail
         print_detail(args.name)
-    elif sub == "use":
-        from apm.providers import set_active
-        try:
-            set_active(args.name)
-            print(f"  Active provider set to: {args.name}")
-        except ValueError as e:
-            print(f"  Error: {e}")
     elif sub == "import":
         _cmd_provider_import(args)
     elif sub == "known":
         from apm.registry import print_providers
         print_providers()
+    elif sub == "test":
+        _cmd_provider_test(args)
+    elif sub == "rename":
+        _cmd_provider_rename(args)
+
+
+def _resolve_api_key(args: argparse.Namespace) -> str | None:
+    """Resolve API key from --key-env or interactive prompt.
+
+    --key is kept for backward compat but prints a security warning.
+    """
+    key_direct = getattr(args, "key", None)
+    if key_direct:
+        from apm.colors import yellow
+        msg = "⚠ --key exposes secrets in shell history."
+        msg += " Prefer --key-env or interactive prompt."
+        print(f"  {yellow(msg)}")
+        return key_direct
+    env_name = getattr(args, "key_env", None)
+    if env_name:
+        val = os.environ.get(env_name)
+        if not val:
+            print(f"  Error: environment variable ${env_name} is not set")
+            return None
+        return val
+    if not sys.stdin.isatty():
+        print("  Error: no API key provided. Use --key-env VAR in non-interactive mode.")
+        return None
+    try:
+        return getpass.getpass("  Enter API key: ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+
+
+def _pick_provider_from_registry() -> tuple[str, str | None] | None:
+    """Interactive provider + variant selection. Returns (slug, variant) or None."""
+    from apm.menu import pick
+    from apm.registry import list_providers as list_registry_providers
+
+    providers = list_registry_providers()
+    options = []
+    for slug, info in sorted(providers.items()):
+        variants = info.get("variants", {})
+        v_count = len(variants)
+        first_url = next(iter(variants.values()), {}).get("base_url", "") if variants else ""
+        models = info.get("models", [])
+        model_str = ", ".join(m["id"] if isinstance(m, dict) else m for m in models[:3])
+        v_hint = f" [{v_count} variants]" if v_count > 1 else ""
+        label = f"{info['name']} ({slug}){v_hint}"
+        detail = f"{first_url}  models: {model_str}" if model_str else first_url
+        options.append({
+            "label": label,
+            "detail": detail,
+            "slug": slug,
+            "info": info,
+        })
+
+    chosen = pick("Select a provider", options)
+    if not chosen:
+        return None
+
+    slug = chosen["slug"]
+    info = chosen["info"]
+    variants = info.get("variants", {})
+
+    variant = None
+    if len(variants) == 1:
+        variant = next(iter(variants))
+    elif len(variants) > 1:
+        v_options = []
+        for vname, vinfo in variants.items():
+            desc = vinfo.get("description", "")
+            url = vinfo.get("base_url", "")
+            detail = f"{desc}  {url}" if desc else url
+            v_options.append({"label": vname, "detail": detail})
+        v_chosen = pick("Select a variant", v_options, allow_filter=False)
+        if v_chosen:
+            variant = v_chosen["label"]
+
+    return slug, variant
 
 
 def _cmd_provider_add(args: argparse.Namespace) -> None:
     """Add a new provider."""
-    from apm.providers import add
+    from apm.colors import bold, green, yellow
+    from apm.providers import add, fuzzy_match
+    from apm.registry import list_providers as list_registry_providers
     from apm.registry import resolve_provider
 
-    name = args.name
-    key = args.key
-    if not key:
-        print("  Error: --key is required")
-        print("  Usage: apm provider add <name> --key <api-key> [--url <url>] [--variant v]")
-        return
-
+    name = getattr(args, "name", None)
     variant = getattr(args, "variant", None)
 
-    # Try to resolve from registry
+    if not name:
+        result = _pick_provider_from_registry()
+        if not result:
+            return
+        name, variant = result
+
+    key = _resolve_api_key(args)
+    if not key:
+        return
+
     resolved = resolve_provider(name, key, variant=variant)
     if resolved:
-        # Use registry info, allow overrides
         base_url = args.url or resolved["base_url"]
         protocol = args.protocol or resolved["protocol"]
         models = args.models or resolved.get("models", [])
         if isinstance(models, str):
             models = [m.strip() for m in models.split(",") if m.strip()]
-        slug = add(resolved["name"], base_url, key, protocol, models)
-        print(f"  Added provider: {slug}")
+        anthro_url = resolved.get("anthropic_base_url")
+        meta = resolved.get("_model_meta")
+        user_alias = getattr(args, "alias", None)
+        slug = add(
+            resolved["name"], base_url, key, protocol, models,
+            anthropic_base_url=anthro_url, model_meta=meta,
+            alias=user_alias,
+        )
+        print(f"  {green('✓')} Added provider: {bold(slug)}")
         print(f"    URL: {base_url}")
+        if anthro_url:
+            print(f"    Anthropic URL: {anthro_url}")
         print(f"    Protocol: {protocol}")
         if models:
             print(f"    Models: {', '.join(models[:5])}")
 
-        # Show available variants if any
-        variants = resolved.get("variants", {})
-        if variants and not variant and len(variants) > 1:
-            print(f"\n  Available variants (use --variant to select):")
-            for vname, vinfo in variants.items():
-                print(f"    {vname:<20} {vinfo['base_url']}")
     else:
-        # Custom provider
+        registry_names = list(list_registry_providers().keys())
+        suggestions = fuzzy_match(name, registry_names)
+        if suggestions:
+            hint = ", ".join(yellow(s) for s in suggestions[:3])
+            print(f"  '{name}' not found. Did you mean: {hint}?")
+            if not args.url:
+                return
+
         if not args.url:
             print(f"  Error: '{name}' not found in registry. Use --url for custom providers.")
             print("  Run 'apm providers' to see available providers.")
@@ -127,17 +193,51 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
         if args.models:
             models = [m.strip() for m in args.models.split(",") if m.strip()]
         slug = add(name, args.url, key, args.protocol or "openai-compatible", models)
-        print(f"  Added provider: {slug}")
+        print(f"  {green('✓')} Added provider: {bold(slug)}")
 
 
 def _cmd_provider_remove(args: argparse.Namespace) -> None:
     """Remove a provider."""
-    from apm.providers import remove
+    from apm.colors import green, red
+    from apm.providers import fuzzy_match, list_all, remove
     try:
         remove(args.name)
-        print(f"  Removed provider: {args.name}")
-    except ValueError as e:
-        print(f"  Error: {e}")
+        print(f"  {green('✓')} Removed provider: {args.name}")
+    except ValueError:
+        slugs = [p["slug"] for p in list_all()]
+        suggestions = fuzzy_match(args.name, slugs)
+        if suggestions:
+            hint = ", ".join(suggestions[:3])
+            print(f"  {red('✗')} Provider '{args.name}' not found. Did you mean: {hint}?")
+        else:
+            print(f"  {red('✗')} Provider '{args.name}' not found.")
+            print("  → Run 'apm provider list' to see configured providers.")
+
+
+def _cmd_provider_test(args: argparse.Namespace) -> None:
+    """Test provider connectivity."""
+    from apm.colors import bold, green, red
+    from apm.providers import list_all, test_provider
+
+    if hasattr(args, "name") and args.name:
+        names = [args.name]
+    else:
+        providers = list_all()
+        if not providers:
+            print("  No providers configured. Use 'apm provider add' first.")
+            return
+        names = [p["slug"] for p in providers]
+
+    print("\n  Testing Provider Connectivity")
+    print("  " + "=" * 45)
+    for name in names:
+        result = test_provider(name)
+        if result["status"] == "ok":
+            latency = result.get("latency_ms", "?")
+            print(f"  {green('✓')}  {bold(name):<20} {result['message']} ({latency}ms)")
+        else:
+            print(f"  {red('✗')}  {bold(name):<20} {result['message']}")
+    print()
 
 
 def _cmd_provider_import(args: argparse.Namespace) -> None:
@@ -156,19 +256,65 @@ def _cmd_provider_import(args: argparse.Namespace) -> None:
     print("\n  Import Results")
     print("  " + "=" * 45)
     for r in results:
-        icon = {"imported": "✓", "exists": "⊘", "error": "✗"}.get(r["status"], "?")
-        print(f"  {icon}  {r['agent']:<15} → {r['provider'] or '(failed)'}")
+        icon = {"imported": "✓", "exists": "⊘", "merged": "≡", "error": "✗"}.get(r["status"], "?")
+        detail = r.get("message", r["provider"] or "(failed)")
+        if r["status"] == "merged":
+            detail = f"skipped — {r.get('message', 'same key')}"
+        elif r["status"] == "exists":
+            detail = f"skipped — '{r['provider']}' already exists"
+        elif r["status"] == "imported":
+            detail = f"added as '{r['provider']}'"
+        print(f"  {icon}  {r['agent']:<15} {detail}")
     print()
+
+
+def _cmd_provider_rename(args: argparse.Namespace) -> None:
+    """Rename a provider's slug."""
+    from apm.colors import green, red
+    from apm.providers import rename
+    try:
+        rename(args.old_name, args.new_name)
+        print(f"  {green('✓')} Renamed: {args.old_name} → {args.new_name}")
+    except ValueError as e:
+        print(f"  {red('✗')} {e}")
+
+
+def _pick_configured_provider() -> str | None:
+    """Interactive selection from user's configured providers."""
+    from apm.menu import pick
+    from apm.providers import list_all
+
+    providers = list_all()
+    if not providers:
+        print("  No providers configured. Run 'apm provider add' first.")
+        return None
+
+    options = [
+        {
+            "label": f"{p['name']} ({p['slug']})",
+            "detail": p["base_url"],
+            "slug": p["slug"],
+        }
+        for p in providers
+    ]
+    chosen = pick("Select a provider to sync", options, allow_filter=False)
+    return chosen["slug"] if chosen else None
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
     """Sync a provider to agents."""
     from apm.sync import print_sync_results, sync_provider
 
+    provider_name = getattr(args, "provider", None)
+    if not provider_name:
+        provider_name = _pick_configured_provider()
+        if not provider_name:
+            return
+
     agents = None
     if args.agents:
         agents = [a.strip() for a in args.agents.split(",")]
-    results = sync_provider(args.provider, agents, args.dry_run)
+    results = sync_provider(provider_name, agents, args.dry_run)
     print_sync_results(results, args.dry_run)
 
 
@@ -267,6 +413,101 @@ def cmd_snapshot(args: argparse.Namespace) -> None:
             print(f"  Snapshot not found: {args.name}")
 
 
+def cmd_init(_args: argparse.Namespace) -> None:
+    """Interactive setup guide."""
+    from apm.colors import bold, cyan, green, yellow
+    from apm.detect import detect_all
+    from apm.registry import list_providers as list_registry_providers
+
+    print(f"\n  {bold('Agent Provider Manager — Setup')}")
+    print("  " + "=" * 40)
+
+    # Step 1: Scan agents
+    print(f"\n  {cyan('Step 1:')} Scanning installed agents...")
+    results = detect_all()
+    installed = [r for r in results if r["installed"]]
+    print(f"  Found {green(str(len(installed)))} installed agents:")
+    for r in installed:
+        print(f"    ✓ {r['name']}")
+    if not installed:
+        print(f"  {yellow('No agents found.')} Install an AI coding agent first.")
+        return
+
+    # Step 2: Choose provider (interactive menu)
+    print(f"\n  {cyan('Step 2:')} Choose a provider")
+    result = _pick_provider_from_registry()
+    if not result:
+        print("  Setup cancelled.")
+        return
+    provider_slug, variant = result
+    providers = list_registry_providers()
+
+    # Step 3: API key
+    print(f"\n  {cyan('Step 3:')} Enter your API key for {bold(providers[provider_slug]['name'])}")
+    try:
+        key = getpass.getpass("  API key (hidden): ")
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Setup cancelled.")
+        return
+    if not key.strip():
+        print("  No key provided. Setup cancelled.")
+        return
+
+    # Step 4: Add & sync
+    from apm.providers import add
+    from apm.registry import resolve_provider
+    resolved = resolve_provider(provider_slug, key, variant=variant)
+    if resolved:
+        slug = add(
+            resolved["name"], resolved["base_url"], key,
+            resolved["protocol"], resolved.get("models", []),
+            anthropic_base_url=resolved.get("anthropic_base_url"),
+            model_meta=resolved.get("_model_meta"),
+        )
+        print(f"\n  {green('✓')} Provider added: {bold(slug)}")
+
+        print(f"\n  {cyan('Step 4:')} Syncing to all agents...")
+        from apm.sync import print_sync_results, sync_provider
+        results = sync_provider(slug)
+        print_sync_results(results)
+    else:
+        print(f"  Failed to resolve provider. Try {cyan('apm provider add')} manually.")
+
+    print(f"  {bold('Setup complete!')} Run {cyan('apm status')} to check.")
+    print()
+
+
+def cmd_undo(_args: argparse.Namespace) -> None:
+    """Undo the last sync by restoring the most recent auto-snapshot."""
+    from apm.colors import bold, green, red
+    from apm.snapshot import list_snapshots, print_restore_result, restore_snapshot
+
+    snapshots = list_snapshots()
+    auto_snaps = [s for s in snapshots if s["name"].startswith("auto-pre-sync-")]
+    if not auto_snaps:
+        print(f"  {red('✗')} No auto-snapshots found. Nothing to undo.")
+        return
+
+    latest = auto_snaps[0]  # Already sorted by reverse time
+    print(f"  Restoring from: {bold(latest['name'])}")
+    print(f"  Created at: {latest['created_at'][:19]}")
+    print(f"  Agents: {', '.join(latest['agents'])}")
+
+    try:
+        answer = input("\n  Restore? [y/N] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Cancelled.")
+        return
+
+    if answer not in ("y", "yes"):
+        print("  Cancelled.")
+        return
+
+    result = restore_snapshot(latest["name"])
+    print_restore_result(result)
+    print(f"  {green('✓')} Undo complete.")
+
+
 def cmd_version(_args: argparse.Namespace) -> None:
     """Print version."""
     print(f"apm {__version__}")
@@ -276,7 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
         prog="apm",
-        description="Agent Provider Manager — centralized API provider management for AI coding agents",
+        description="Agent Provider Manager — centralized API provider management",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("-V", "--version", action="version", version=f"apm {__version__}")
@@ -299,12 +540,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     # provider add
     p_add = prov_sub.add_parser("add", help="Add a provider")
-    p_add.add_argument("name", help="Provider name (or registry slug)")
-    p_add.add_argument("--key", required=True, help="API key")
+    p_add.add_argument("name", nargs="?", help="Provider name (interactive if omitted)")
+    p_add.add_argument("--key", help="API key (DEPRECATED: use --key-env or interactive prompt)")
+    p_add.add_argument("--key-env", help="Read API key from this env var")
     p_add.add_argument("--url", help="Base URL (auto-filled from registry if known)")
     p_add.add_argument("--variant", help="Provider variant (e.g. token-plan-cn, api)")
     p_add.add_argument("--protocol", default="openai-compatible")
     p_add.add_argument("--models", help="Comma-separated model names")
+    p_add.add_argument("--alias", help="Custom slug/alias for the provider")
 
     # provider remove
     p_rm = prov_sub.add_parser("remove", help="Remove a provider")
@@ -317,10 +560,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_show = prov_sub.add_parser("show", help="Show provider details")
     p_show.add_argument("name")
 
-    # provider use
-    p_use = prov_sub.add_parser("use", help="Set active provider")
-    p_use.add_argument("name")
-
     # provider import
     p_import = prov_sub.add_parser("import", help="Import from installed agents")
     p_import.add_argument("--agents", help="Comma-separated agent names")
@@ -328,15 +567,24 @@ def build_parser() -> argparse.ArgumentParser:
     # provider known
     prov_sub.add_parser("known", help="List known providers from registry")
 
+    # provider rename
+    p_rename = prov_sub.add_parser("rename", help="Rename a provider slug")
+    p_rename.add_argument("old_name", help="Current provider slug")
+    p_rename.add_argument("new_name", help="New slug")
+
+    # provider test
+    p_test = prov_sub.add_parser("test", help="Test provider connectivity")
+    p_test.add_argument("name", nargs="?", help="Provider name (tests all if omitted)")
+
     # sync
     p_sync = sub.add_parser("sync", help="Sync provider to agents")
-    p_sync.add_argument("provider", help="Provider name")
+    p_sync.add_argument("provider", nargs="?", help="Provider name (interactive if omitted)")
     p_sync.add_argument("--agents", help="Comma-separated agent names")
     p_sync.add_argument("--dry-run", action="store_true", help="Preview changes")
 
     # switch (alias)
     p_switch = sub.add_parser("switch", help="Switch all agents to provider")
-    p_switch.add_argument("provider", help="Provider name")
+    p_switch.add_argument("provider", nargs="?", help="Provider name (interactive if omitted)")
     p_switch.add_argument("--agents", help="Comma-separated agent names")
     p_switch.add_argument("--dry-run", action="store_true", help="Preview changes")
 
@@ -355,6 +603,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     # providers (registry)
     sub.add_parser("providers", help="List known providers from registry")
+
+    # init
+    sub.add_parser("init", help="Interactive setup guide")
+
+    # undo
+    sub.add_parser("undo", help="Undo last sync (restore auto-snapshot)")
 
     # snapshot
     p_snap = sub.add_parser("snapshot", help="Save/restore agent configs")
@@ -405,6 +659,8 @@ def main(argv: list[str] | None = None) -> None:
         "agents": cmd_agents,
         "providers": cmd_providers,
         "snapshot": cmd_snapshot,
+        "init": cmd_init,
+        "undo": cmd_undo,
         "version": cmd_version,
     }
 

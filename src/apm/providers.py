@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import datetime, timezone
 
-from apm.config import APM_DIR, PROVIDERS_FILE
+from apm.config import APM_DIR, PROVIDERS_FILE, atomic_write
 
 logger = logging.getLogger(__name__)
 
@@ -20,21 +19,21 @@ def _ensure_dir() -> None:
 def _load() -> dict:
     """Load providers.json."""
     if not PROVIDERS_FILE.exists():
-        return {"providers": {}, "active_provider": None}
+        return {"providers": {}}
     try:
         with open(PROVIDERS_FILE) as f:
-            return json.load(f)
+            data = json.load(f)
+        data.pop("active_provider", None)
+        return data
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("Failed to load providers.json: %s", e)
-        return {"providers": {}, "active_provider": None}
+        return {"providers": {}}
 
 
 def _save(data: dict) -> None:
-    """Save providers.json."""
+    """Save providers.json atomically with restricted permissions."""
     _ensure_dir()
-    with open(PROVIDERS_FILE, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.chmod(PROVIDERS_FILE, 0o600)
+    atomic_write(PROVIDERS_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n", mode=0o600)
 
 
 def add(
@@ -43,11 +42,20 @@ def add(
     api_key: str,
     protocol: str = "openai-compatible",
     models: list[str] | None = None,
+    anthropic_base_url: str | None = None,
+    model_meta: dict | None = None,
+    alias: str | None = None,
 ) -> str:
     """Add a new provider. Returns the provider slug."""
     data = _load()
-    slug = name.lower().replace(" ", "-").replace("_", "-")
-    data["providers"][slug] = {
+    slug = alias or name.lower().replace(" ", "-").replace("_", "-")
+    # Deduplicate: append suffix if slug already exists
+    if slug in data["providers"] and not alias:
+        i = 2
+        while f"{slug}-{i}" in data["providers"]:
+            i += 1
+        slug = f"{slug}-{i}"
+    entry = {
         "name": name,
         "base_url": base_url.rstrip("/"),
         "api_key": api_key,
@@ -55,8 +63,11 @@ def add(
         "models": models or [],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    if data["active_provider"] is None:
-        data["active_provider"] = slug
+    if anthropic_base_url:
+        entry["anthropic_base_url"] = anthropic_base_url.rstrip("/")
+    if model_meta:
+        entry["model_meta"] = model_meta
+    data["providers"][slug] = entry
     _save(data)
     return slug
 
@@ -68,8 +79,6 @@ def remove(name: str) -> None:
     if slug is None:
         raise ValueError(f"Provider '{name}' not found")
     del data["providers"][slug]
-    if data["active_provider"] == slug:
-        data["active_provider"] = next(iter(data["providers"]), None)
     _save(data)
 
 
@@ -90,30 +99,30 @@ def list_all() -> list[dict]:
     result = []
     for slug, p in data["providers"].items():
         p["slug"] = slug
-        p["is_active"] = slug == data["active_provider"]
         result.append(p)
     return result
 
 
-def set_active(name: str) -> None:
-    """Set the active provider."""
+def rename(old_slug: str, new_slug: str) -> None:
+    """Rename a provider's slug."""
     data = _load()
-    slug = _resolve_slug(data, name)
-    if slug is None:
-        raise ValueError(f"Provider '{name}' not found")
-    data["active_provider"] = slug
+    resolved = _resolve_slug(data, old_slug)
+    if resolved is None:
+        raise ValueError(f"Provider '{old_slug}' not found")
+    new_slug = new_slug.lower().replace(" ", "-").replace("_", "-")
+    if new_slug in data["providers"]:
+        raise ValueError(f"Provider '{new_slug}' already exists")
+    entry = data["providers"].pop(resolved)
+    data["providers"][new_slug] = entry
     _save(data)
 
 
-def get_active() -> dict | None:
-    """Get the active provider."""
-    data = _load()
-    if not data["active_provider"]:
-        return None
-    p = data["providers"].get(data["active_provider"])
-    if p:
-        p["slug"] = data["active_provider"]
-    return p
+def _mask_key(key: str) -> str:
+    """Mask API key, showing only prefix and last 2 chars."""
+    if len(key) <= 6:
+        return "***"
+    prefix = key[:4]
+    return f"{prefix}{'*' * min(len(key) - 6, 20)}..{key[-2:]}"
 
 
 def _resolve_slug(data: dict, name: str) -> str | None:
@@ -131,17 +140,17 @@ def print_list() -> None:
     if not providers:
         print("\n  No providers configured. Use 'apm provider add' to add one.\n")
         return
-    print("\n  Providers")
+    print(f"\n  Providers ({len(providers)})")
     print("  " + "=" * 55)
     for p in providers:
-        active = " *" if p["is_active"] else "  "
-        masked = p["api_key"][:8] + "..." if len(p["api_key"]) > 8 else "***"
-        print(f"  {active} {p['slug']:<20} {p['base_url']}")
+        masked = _mask_key(p["api_key"])
+        print(f"    {p['slug']:<20} {p['base_url']}")
         print(f"      key={masked}  protocol={p['protocol']}")
+        if p.get("anthropic_base_url"):
+            print(f"      anthropic={p['anthropic_base_url']}")
         if p["models"]:
             print(f"      models={', '.join(p['models'])}")
-    active = next((p["slug"] for p in providers if p["is_active"]), "none")
-    print(f"\n  Active: {active}\n")
+    print()
 
 
 def print_detail(name: str) -> None:
@@ -151,12 +160,32 @@ def print_detail(name: str) -> None:
         print(f"  Provider '{name}' not found.")
         return
     print(f"\n  Provider: {p['name']} ({p['slug']})")
-    print(f"  Base URL: {p['base_url']}")
-    print(f"  API Key:  {p['api_key'][:8]}...{p['api_key'][-4:]}")
-    print(f"  Protocol: {p['protocol']}")
-    models = ", ".join(p["models"]) if p["models"] else "(none)"
-    print(f"  Models:   {models}")
-    print(f"  Created:  {p['created_at']}")
+    print(f"  Base URL:      {p['base_url']}")
+    if p.get("anthropic_base_url"):
+        print(f"  Anthropic URL: {p['anthropic_base_url']}")
+    print(f"  API Key:       {_mask_key(p['api_key'])}")
+    print(f"  Protocol:      {p['protocol']}")
+    if p["models"]:
+        print("  Models:")
+        meta = p.get("model_meta", {})
+        for mid in p["models"]:
+            m = meta.get(mid, {})
+            tags = []
+            ctx = m.get("context")
+            if ctx:
+                if ctx >= 1000000:
+                    tags.append(f"{ctx // 1000000}M ctx")
+                else:
+                    tags.append(f"{ctx // 1000}K ctx")
+            if m.get("reasoning"):
+                tags.append("reasoning")
+            if m.get("vision"):
+                tags.append("vision")
+            tag_str = f"  ({', '.join(tags)})" if tags else ""
+            print(f"    - {mid}{tag_str}")
+    else:
+        print("  Models:        (none)")
+    print(f"  Created:       {p['created_at']}")
     print()
 
 
@@ -181,67 +210,195 @@ def import_from_agents(agents: list[str] | None = None) -> list[dict]:
             current = adapter.read_provider()
             if not current:
                 continue
-            # Generate a slug from the base URL
             url = current.get("base_url", "")
+            api_key = current.get("api_key", "")
             if not url:
                 continue
-            # Try to match a known provider
+
+            # Try to find existing provider by API key match
+            match = _find_by_key(api_key)
+            if match:
+                model = current.get("model")
+                merged_model = False
+                if model:
+                    merged_model = _merge_model(match, model)
+                msg = f"same key as '{match}'"
+                if merged_model:
+                    msg += f", merged model '{model}'"
+                imported.append({
+                    "agent": agent_name,
+                    "provider": match,
+                    "status": "merged",
+                    "message": msg,
+                })
+                continue
+
             slug = _guess_provider_slug(url)
             if not slug:
                 slug = agent_name
 
-            # Check if already exists
             existing = get(slug)
             if existing:
-                logger.debug("Provider %s already exists, skipping", slug)
-                imported.append({"agent": agent_name, "provider": slug, "status": "exists"})
+                imported.append({
+                    "agent": agent_name,
+                    "provider": slug,
+                    "status": "exists",
+                })
                 continue
 
-            # Add
             add(
                 name=slug.replace("-", " ").title(),
                 base_url=url,
-                api_key=current.get("api_key", ""),
+                api_key=api_key,
                 protocol=current.get("protocol", "openai-compatible"),
                 models=[current["model"]] if current.get("model") else [],
             )
-            imported.append({"agent": agent_name, "provider": slug, "status": "imported"})
-            logger.debug("Imported provider %s from %s", slug, agent_name)
-        except Exception as e:
-            logger.debug("Failed to import from %s: %s", agent_name, e)
-            imported.append({"agent": agent_name, "provider": None, "status": "error"})
+            imported.append({
+                "agent": agent_name,
+                "provider": slug,
+                "status": "imported",
+            })
+        except (json.JSONDecodeError, OSError, KeyError, ValueError) as e:
+            logger.warning("Failed to import from %s: %s", agent_name, e)
+            imported.append({
+                "agent": agent_name,
+                "provider": None,
+                "status": "error",
+            })
 
     return imported
 
 
-def _guess_provider_slug(url: str) -> str | None:
-    """Guess provider slug from base URL."""
-    url_lower = url.lower()
-    mappings = {
-        "openai.com": "openai",
-        "anthropic.com": "anthropic",
-        "deepseek.com": "deepseek",
-        "googleapis.com": "google-gemini",
-        "bigmodel.cn": "zhipu-glm",
-        "x.ai": "xai",
-        "moonshot.cn": "moonshot",
-        "siliconflow.cn": "siliconflow",
-        "openrouter.ai": "openrouter",
-        "together.xyz": "together",
-        "fireworks.ai": "fireworks",
-        "volces.com": "volcengine",
-        "baidu.com": "baidu-qianfan",
-        "aliyun.com": "alibaba-qwen",
-        "dashscope": "alibaba-qwen",
-        "minimax.chat": "minimax",
-        "mistral.ai": "mistral",
-        "perplexity.ai": "perplexity",
-        "xiaomimimo.com": "xiaomimimo",
-        "groq.com": "groq",
-        "cerebras.ai": "cerebras",
-        "sambanova.ai": "sambanova",
-    }
-    for pattern, slug in mappings.items():
-        if pattern in url_lower:
+def _merge_model(slug: str, model_id: str) -> bool:
+    """Add a model to an existing provider if not already present. Returns True if added."""
+    data = _load()
+    p = data["providers"].get(slug)
+    if not p:
+        return False
+    models = p.get("models", [])
+    if model_id in models:
+        return False
+    models.append(model_id)
+    p["models"] = models
+    _save(data)
+    return True
+
+
+def _find_by_key(api_key: str) -> str | None:
+    """Find an existing provider with the same API key."""
+    if not api_key:
+        return None
+    data = _load()
+    for slug, p in data["providers"].items():
+        if p.get("api_key") == api_key:
             return slug
     return None
+
+
+def _guess_provider_slug(url: str) -> str | None:
+    """Guess provider slug from base URL using registry data."""
+    from apm.registry import list_providers as list_registry_providers
+
+    url_lower = url.lower()
+    for slug, info in list_registry_providers().items():
+        for variant in info.get("variants", {}).values():
+            if variant.get("base_url", "").lower().rstrip("/") in url_lower:
+                return slug
+            # Also match by domain
+            from urllib.parse import urlparse
+            try:
+                domain = urlparse(variant.get("base_url", "")).netloc
+                if domain and domain in url_lower:
+                    return slug
+            except Exception:
+                pass
+    return None
+
+
+def test_provider(name: str, timeout: float = 10.0) -> dict:
+    """Test provider connectivity by sending a simple API request.
+
+    Returns dict with: status (ok|error), message, latency_ms
+    """
+    import time
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    p = get(name)
+    if not p:
+        return {"status": "error", "message": f"Provider '{name}' not found"}
+
+    base_url = p["base_url"].rstrip("/")
+    api_key = p["api_key"]
+
+    # Try /models endpoint (works for most OpenAI-compatible providers)
+    test_url = f"{base_url}/models"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "apm-cli",
+    }
+
+    start = time.monotonic()
+    try:
+        req = Request(test_url, headers=headers)
+        with urlopen(req, timeout=timeout) as resp:
+            elapsed = (time.monotonic() - start) * 1000
+            return {
+                "status": "ok",
+                "message": f"Connected ({resp.status})",
+                "latency_ms": round(elapsed),
+            }
+    except HTTPError as e:
+        elapsed = (time.monotonic() - start) * 1000
+        if e.code == 401:
+            return {"status": "error", "message": "Authentication failed (401) — check API key",
+                    "latency_ms": round(elapsed)}
+        if e.code == 403:
+            return {"status": "error", "message": "Access forbidden (403) — check permissions",
+                    "latency_ms": round(elapsed)}
+        # 404 on /models is common for non-OpenAI providers, but connection works
+        if e.code == 404:
+            msg = "Connected (404 — /models may not be supported)"
+            return {"status": "ok", "message": msg,
+                    "latency_ms": round(elapsed)}
+        return {"status": "error", "message": f"HTTP {e.code}: {e.reason}",
+                "latency_ms": round(elapsed)}
+    except URLError as e:
+        elapsed = (time.monotonic() - start) * 1000
+        return {"status": "error", "message": f"Connection failed: {e.reason}",
+                "latency_ms": round(elapsed)}
+    except Exception as e:
+        elapsed = (time.monotonic() - start) * 1000
+        return {"status": "error", "message": str(e), "latency_ms": round(elapsed)}
+
+
+def fuzzy_match(name: str, candidates: list[str], threshold: int = 3) -> list[str]:
+    """Find candidates within edit distance threshold of name."""
+    name_lower = name.lower()
+    results = []
+    for c in candidates:
+        c_lower = c.lower()
+        if name_lower in c_lower or c_lower in name_lower:
+            results.append(c)
+            continue
+        # Simple Levenshtein distance
+        dist = _edit_distance(name_lower, c_lower)
+        if dist <= threshold:
+            results.append(c)
+    return results
+
+
+def _edit_distance(a: str, b: str) -> int:
+    """Levenshtein distance."""
+    if len(a) < len(b):
+        return _edit_distance(b, a)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            curr.append(min(prev[j + 1] + 1, curr[j] + 1, prev[j] + (ca != cb)))
+        prev = curr
+    return prev[-1]

@@ -44,10 +44,10 @@ def _try_pipx_update() -> bool:
         )
         if result.returncode == 0:
             if "upgraded" in result.stdout.lower() or "already" in result.stdout.lower():
-                print(f"  ✓ Updated via pipx")
+                print("  ✓ Updated via pipx")
                 _print_new_version()
                 return True
-            print(f"  Already up to date (pipx)")
+            print("  Already up to date (pipx)")
             return True
     except FileNotFoundError:
         logger.debug("pipx not found")
@@ -67,10 +67,10 @@ def _try_pip_update() -> bool:
         )
         if result.returncode == 0:
             if "successfully installed" in result.stdout.lower():
-                print(f"  ✓ Updated via pip")
+                print("  ✓ Updated via pip")
                 _print_new_version()
                 return True
-            print(f"  Already up to date (pip)")
+            print("  Already up to date (pip)")
             return True
         else:
             logger.debug("pip update stderr: %s", result.stderr)

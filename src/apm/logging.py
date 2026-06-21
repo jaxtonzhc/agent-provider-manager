@@ -55,8 +55,19 @@ def get_log_file() -> Path:
 
 
 def tail_logs(n: int = 20) -> list[str]:
-    """Return the last n lines of the log file."""
+    """Return the last n lines of the log file efficiently."""
     if not LOG_FILE.exists():
         return []
-    lines = LOG_FILE.read_text(encoding="utf-8").splitlines()
-    return lines[-n:]
+    # ponytail: read from end of file to avoid loading entire file
+    try:
+        with open(LOG_FILE, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            # Read last ~4KB per line as a rough heuristic
+            chunk = min(size, n * 4096)
+            f.seek(max(0, size - chunk))
+            data = f.read().decode("utf-8", errors="replace")
+        lines = data.splitlines()
+        return lines[-n:]
+    except OSError:
+        return []

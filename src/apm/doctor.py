@@ -10,17 +10,7 @@ from pathlib import Path
 
 from apm import __version__
 from apm.agents.registry import ADAPTERS
-from apm.config import (
-    APM_DIR,
-    CLAUDE_CODE_CONFIG,
-    CODEX_CONFIG,
-    HERMES_CONFIG,
-    LOG_FILE,
-    OPENCLAW_CONFIG,
-    PROVIDERS_FILE,
-    WORKBUDDY_CONFIG,
-    ZCODE_CONFIG,
-)
+from apm.config import AGENT_CONFIG_PATHS, APM_DIR, LOG_FILE, PROVIDERS_FILE
 
 
 def run_diagnostics(fix: bool = False) -> None:
@@ -59,12 +49,12 @@ def run_diagnostics(fix: bool = False) -> None:
         except json.JSONDecodeError:
             print("  ✗ providers.json is corrupted")
             if fix:
-                PROVIDERS_FILE.write_text('{"providers": {}, "active_provider": null}')
+                PROVIDERS_FILE.write_text('{"providers": {}}')
                 print("    → Fixed: reset to empty")
     else:
-        print(f"  ✗ providers.json not found")
+        print("  ✗ providers.json not found")
         if fix:
-            PROVIDERS_FILE.write_text('{"providers": {}, "active_provider": null}')
+            PROVIDERS_FILE.write_text('{"providers": {}}')
             print("    → Fixed: created empty")
 
     # 6. Check agents
@@ -98,19 +88,12 @@ def run_diagnostics(fix: bool = False) -> None:
         else:
             print(f"\n  ✓ Log file OK ({size // 1024}KB)")
     else:
-        print(f"\n  ⊘ No log file yet")
+        print("\n  ⊘ No log file yet")
 
     print()
 
 
 def _get_agent_config_path(name: str) -> Path | None:
     """Get the primary config path for an agent."""
-    paths = {
-        "claude-code": CLAUDE_CODE_CONFIG,
-        "codex": CODEX_CONFIG,
-        "hermes": HERMES_CONFIG,
-        "openclaw": OPENCLAW_CONFIG,
-        "zcode": ZCODE_CONFIG,
-        "workbuddy": WORKBUDDY_CONFIG,
-    }
-    return paths.get(name)
+    paths = AGENT_CONFIG_PATHS.get(name, [])
+    return paths[0] if paths else None
