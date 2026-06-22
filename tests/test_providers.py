@@ -125,7 +125,8 @@ class TestSortModelsByVersion:
 class TestFetchModels:
     def test_fetch_success(self):
         import json
-        from unittest.mock import MagicMock, patch as _patch
+        from unittest.mock import MagicMock
+        from unittest.mock import patch as _patch
 
         from apm.providers import fetch_models
 
@@ -161,7 +162,8 @@ class TestFetchModels:
     def test_fetch_alt_format(self):
         """Some providers return {models: [...]} instead of {data: [...]}."""
         import json
-        from unittest.mock import MagicMock, patch as _patch
+        from unittest.mock import MagicMock
+        from unittest.mock import patch as _patch
 
         from apm.providers import fetch_models
 
