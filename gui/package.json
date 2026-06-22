@@ -2,7 +2,11 @@
   "name": "apm-gui",
   "version": "0.1.2",
   "description": "APM — Agent Provider Manager GUI",
-  "author": "Jaxton ZHC",
+  "author": {
+    "name": "Jaxton ZHC",
+    "email": "jaxtonzhc@gmail.com"
+  },
+  "homepage": "https://github.com/jaxtonzhc/agent-provider-manager",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite --host",
