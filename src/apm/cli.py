@@ -19,6 +19,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
     """Scan installed agents."""
     if getattr(args, "json", False):
         import json
+
         from apm.detect import detect_all
         print(json.dumps(detect_all(), ensure_ascii=False))
     else:
@@ -30,6 +31,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     """Show current provider status."""
     if getattr(args, "json", False):
         import json
+
         from apm.providers import list_all
         from apm.sync import get_status
         print(json.dumps({
@@ -58,6 +60,7 @@ def cmd_provider(args: argparse.Namespace) -> None:
     elif sub == "list":
         if getattr(args, "json", False):
             import json
+
             from apm.providers import list_all
             print(json.dumps(list_all(), ensure_ascii=False))
         else:
@@ -66,6 +69,7 @@ def cmd_provider(args: argparse.Namespace) -> None:
     elif sub == "show":
         if getattr(args, "json", False):
             import json
+
             from apm.providers import get
             data = get(args.name)
             print(json.dumps(data, ensure_ascii=False) if data else '{}')
@@ -560,6 +564,7 @@ def cmd_snapshot(args: argparse.Namespace) -> None:
     elif sub == "list":
         if getattr(args, "json", False):
             import json
+
             from apm.snapshot import list_snapshots
             print(json.dumps(list_snapshots(), ensure_ascii=False))
         else:
@@ -681,7 +686,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Agent Provider Manager — centralized API provider management",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--json", action="store_true", help="Output in JSON format (for GUI/scripts)")
+    parser.add_argument(
+        "--json", action="store_true", help="JSON output (for GUI/scripts)"
+    )
     parser.add_argument("-V", "--version", action="version", version=f"apm {__version__}")
 
     sub = parser.add_subparsers(dest="command")
@@ -716,7 +723,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_upd = prov_sub.add_parser("update", help="Update a provider's config")
     p_upd.add_argument("name", help="Provider slug to update")
     p_upd.add_argument("--url", help="New OpenAI-compatible base URL")
-    p_upd.add_argument("--anthropic-url", help="New Anthropic-compatible URL (empty string to remove)")
+    p_upd.add_argument(
+        "--anthropic-url", help="New Anthropic URL (empty to remove)"
+    )
     p_upd.add_argument("--key", help="New API key")
     p_upd.add_argument("--key-env", help="Read new API key from env var")
     p_upd.add_argument("--models", help="Comma-separated model names")

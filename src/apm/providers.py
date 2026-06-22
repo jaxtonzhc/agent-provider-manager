@@ -137,7 +137,10 @@ def update(name: str, **kwargs) -> None:
         elif k == "api_key":
             entry["api_key"] = v
         elif k == "models":
-            entry["models"] = v if isinstance(v, list) else [m.strip() for m in v.split(",") if m.strip()]
+            entry["models"] = (
+                v if isinstance(v, list)
+                else [m.strip() for m in v.split(",") if m.strip()]
+            )
         elif k == "protocol":
             entry["protocol"] = v
     _save(data)
