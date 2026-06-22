@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="sync-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="50%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#0a0a0a"/>
+  <rect x="4" y="4" width="504" height="504" rx="92" fill="none" stroke="url(#sync-grad)" stroke-width="2" opacity="0.3"/>
+  <!-- Infinity/Sync symbol -->
+  <g transform="translate(256, 256)" filter="url(#glow)">
+    <!-- Left loop -->
+    <path d="M-50,-45 C-100,-45 -120,0 -120,0 C-120,0 -100,45 -50,45 C-20,45 0,20 0,0" 
+          stroke="url(#sync-grad)" stroke-width="28" stroke-linecap="round" fill="none"/>
+    <!-- Right loop -->
+    <path d="M50,45 C100,45 120,0 120,0 C120,0 100,-45 50,-45 C20,-45 0,-20 0,0" 
+          stroke="url(#sync-grad)" stroke-width="28" stroke-linecap="round" fill="none"/>
+    <!-- Left arrow head -->
+    <polygon points="-35,-55 -55,-35 -25,-35" fill="#5eead4" transform="rotate(-15, -40, -45)"/>
+    <!-- Right arrow head -->
+    <polygon points="35,55 55,35 25,35" fill="#06b6d4" transform="rotate(-15, 40, 45)"/>
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="8" fill="#5eead4"/>
+    <circle cx="0" cy="0" r="4" fill="#0a0a0a"/>
+  </g>
+</svg>

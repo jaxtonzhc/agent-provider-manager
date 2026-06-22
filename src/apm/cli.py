@@ -15,16 +15,30 @@ from apm import __version__
 from apm.logging import setup_logging
 
 
-def cmd_scan(_args: argparse.Namespace) -> None:
+def cmd_scan(args: argparse.Namespace) -> None:
     """Scan installed agents."""
-    from apm.detect import print_scan_results
-    print_scan_results()
+    if getattr(args, "json", False):
+        import json
+        from apm.detect import detect_all
+        print(json.dumps(detect_all(), ensure_ascii=False))
+    else:
+        from apm.detect import print_scan_results
+        print_scan_results()
 
 
-def cmd_status(_args: argparse.Namespace) -> None:
+def cmd_status(args: argparse.Namespace) -> None:
     """Show current provider status."""
-    from apm.sync import print_status
-    print_status()
+    if getattr(args, "json", False):
+        import json
+        from apm.providers import list_all
+        from apm.sync import get_status
+        print(json.dumps({
+            "providers": list_all(),
+            "agents": get_status(),
+        }, ensure_ascii=False))
+    else:
+        from apm.sync import print_status
+        print_status()
 
 
 def cmd_provider(args: argparse.Namespace) -> None:
@@ -32,19 +46,32 @@ def cmd_provider(args: argparse.Namespace) -> None:
     sub = args.subcommand
     if not sub:
         print("  Usage: apm provider <subcommand>")
-        print("  Subcommands: add, remove, rename, list, show, test, models, import, known")
+        print("  Subcommands: add, update, remove, rename, list, show, test, models, import, known")
         return
 
     if sub == "add":
         _cmd_provider_add(args)
     elif sub == "remove":
         _cmd_provider_remove(args)
+    elif sub == "update":
+        _cmd_provider_update(args)
     elif sub == "list":
-        from apm.providers import print_list
-        print_list()
+        if getattr(args, "json", False):
+            import json
+            from apm.providers import list_all
+            print(json.dumps(list_all(), ensure_ascii=False))
+        else:
+            from apm.providers import print_list
+            print_list()
     elif sub == "show":
-        from apm.providers import print_detail
-        print_detail(args.name)
+        if getattr(args, "json", False):
+            import json
+            from apm.providers import get
+            data = get(args.name)
+            print(json.dumps(data, ensure_ascii=False) if data else '{}')
+        else:
+            from apm.providers import print_detail
+            print_detail(args.name)
     elif sub == "import":
         _cmd_provider_import(args)
     elif sub == "known":
@@ -162,7 +189,7 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
         models = args.models or resolved.get("models", [])
         if isinstance(models, str):
             models = [m.strip() for m in models.split(",") if m.strip()]
-        anthro_url = resolved.get("anthropic_base_url")
+        anthro_url = getattr(args, "anthropic_url", None) or resolved.get("anthropic_base_url")
         meta = resolved.get("_model_meta")
         user_alias = getattr(args, "alias", None)
         slug = add(
@@ -201,8 +228,9 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
                 print("  Cancelled.")
                 return
 
-        anthro_url = None
-        if interactive and not args.url:
+        anthro_url = getattr(args, "anthropic_url", None)
+        if not anthro_url and interactive and not args.url:
+            from apm.colors import dim
             raw_anthro = input(
                 f"  Anthropic Base URL {dim('(Enter to skip)')}: "
             ).strip()
@@ -252,6 +280,53 @@ def _cmd_provider_add(args: argparse.Namespace) -> None:
             shown = ", ".join(models[:5])
             extra = f" (+{len(models) - 5} more)" if len(models) > 5 else ""
             print(f"    Models: {shown}{extra}")
+
+
+def _cmd_provider_update(args: argparse.Namespace) -> None:
+    """Update an existing provider's fields."""
+    from apm.colors import bold, green, red
+    from apm.providers import get, rename, update
+
+    provider = get(args.name)
+    if not provider:
+        print(f"  {red('✗')} Provider '{args.name}' not found.")
+        return
+
+    kwargs = {}
+    if args.url:
+        kwargs["base_url"] = args.url
+    anthro = getattr(args, "anthropic_url", None)
+    if anthro is not None:
+        kwargs["anthropic_base_url"] = anthro
+    if getattr(args, "key_env", None):
+        val = os.environ.get(args.key_env)
+        if not val:
+            print(f"  {red('✗')} Env var '{args.key_env}' is empty or not set.")
+            return
+        kwargs["api_key"] = val
+    elif getattr(args, "key", None):
+        kwargs["api_key"] = args.key
+    if getattr(args, "models", None):
+        kwargs["models"] = args.models
+
+    new_name = getattr(args, "rename", None)
+    if not kwargs and not new_name:
+        print("  Nothing to update. Use --url, --anthropic-url, --key-env, --models, or --rename.")
+        return
+
+    if kwargs:
+        update(args.name, **kwargs)
+    if new_name:
+        rename(args.name, new_name)
+
+    display_name = new_name or args.name
+    print(f"  {green('✓')} Updated provider: {bold(display_name)}")
+    if new_name:
+        print(f"    renamed: {args.name} → {new_name}")
+    for k, v in kwargs.items():
+        if k == "api_key":
+            v = v[:4] + "..." + v[-4:] if len(v) > 8 else "***"
+        print(f"    {k}: {v}")
 
 
 def _cmd_provider_remove(args: argparse.Namespace) -> None:
@@ -483,7 +558,12 @@ def cmd_snapshot(args: argparse.Namespace) -> None:
         result = restore_snapshot(args.name, agents=agents)
         print_restore_result(result)
     elif sub == "list":
-        print_snapshots()
+        if getattr(args, "json", False):
+            import json
+            from apm.snapshot import list_snapshots
+            print(json.dumps(list_snapshots(), ensure_ascii=False))
+        else:
+            print_snapshots()
     elif sub == "delete":
         if not hasattr(args, "name") or not args.name:
             print("  Usage: apm snapshot delete <name>")
@@ -601,6 +681,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Agent Provider Manager — centralized API provider management",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format (for GUI/scripts)")
     parser.add_argument("-V", "--version", action="version", version=f"apm {__version__}")
 
     sub = parser.add_subparsers(dest="command")
@@ -624,11 +705,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument("name", nargs="?", help="Provider name (interactive if omitted)")
     p_add.add_argument("--key", help="API key (DEPRECATED: use --key-env or interactive prompt)")
     p_add.add_argument("--key-env", help="Read API key from this env var")
-    p_add.add_argument("--url", help="Base URL (auto-filled from registry if known)")
+    p_add.add_argument("--url", help="Base URL (OpenAI-compatible endpoint)")
+    p_add.add_argument("--anthropic-url", help="Anthropic-compatible endpoint URL")
     p_add.add_argument("--variant", help="Provider variant (e.g. token-plan-cn, api)")
     p_add.add_argument("--protocol", default="openai-compatible")
     p_add.add_argument("--models", help="Comma-separated model names")
     p_add.add_argument("--alias", help="Custom slug/alias for the provider")
+
+    # provider update
+    p_upd = prov_sub.add_parser("update", help="Update a provider's config")
+    p_upd.add_argument("name", help="Provider slug to update")
+    p_upd.add_argument("--url", help="New OpenAI-compatible base URL")
+    p_upd.add_argument("--anthropic-url", help="New Anthropic-compatible URL (empty string to remove)")
+    p_upd.add_argument("--key", help="New API key")
+    p_upd.add_argument("--key-env", help="Read new API key from env var")
+    p_upd.add_argument("--models", help="Comma-separated model names")
+    p_upd.add_argument("--rename", help="Rename provider slug")
 
     # provider remove
     p_rm = prov_sub.add_parser("remove", help="Remove a provider")

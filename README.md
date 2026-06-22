@@ -1,13 +1,32 @@
-# Agent Provider Manager
+<p align="center">
+  <img src="docs/logo.png" width="120" alt="APM Logo" />
+</p>
 
-[![CI](https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/agent-provider-manager)](https://pypi.org/project/agent-provider-manager/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/pypi/pyversions/agent-provider-manager)](https://pypi.org/project/agent-provider-manager/)
+<h1 align="center">Agent Provider Manager</h1>
 
-**Centralized API provider management for AI coding agents.**
+<p align="center">
+  <strong>Centralized API provider management for AI coding agents.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml"><img src="https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/release-gui.yml"><img src="https://github.com/jaxtonzhc/agent-provider-manager/actions/workflows/release-gui.yml/badge.svg" alt="Release GUI"></a>
+  <a href="https://pypi.org/project/agent-provider-manager/"><img src="https://img.shields.io/pypi/v/agent-provider-manager" alt="PyPI"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://pypi.org/project/agent-provider-manager/"><img src="https://img.shields.io/pypi/pyversions/agent-provider-manager" alt="Python"></a>
+</p>
+
+---
 
 Your API subscriptions are the source of truth. Agents come and go — your provider config stays.
+
+## GUI Desktop App
+
+<p align="center">
+  <img src="docs/screenshots/gui-overview.png" width="720" alt="APM GUI" />
+</p>
+
+Download the latest GUI release from [Releases](https://github.com/jaxtonzhc/agent-provider-manager/releases).
 
 ```
 ┌─────────────┐
@@ -80,6 +99,7 @@ apm status                              # 4. Check status
 | `apm provider add <name> --url <url>` | Add custom provider (not in registry) |
 | `apm provider add <name> --alias myname` | Add with custom alias |
 | `apm provider add <name> --variant V` | Select specific variant (e.g., token-plan-cn) |
+| `apm provider update <name> --url/--anthropic-url/--key/--models` | Update provider fields |
 | `apm provider test [name]` | Test provider connectivity |
 | `apm provider rename <old> <new>` | Rename a provider slug |
 | `apm provider remove <name>` | Remove a provider |
@@ -118,11 +138,13 @@ apm status                              # 4. Check status
 | `apm agents` | List known agents |
 | `apm providers` | List known providers |
 
-### Debug
+### Debug & Machine-Readable Output
 
 ```bash
 apm --debug status          # Verbose logging
 APM_DEBUG=1 apm status     # Via environment variable
+apm --json status           # JSON output (for GUI/scripts)
+apm --json provider list    # All commands support --json
 ```
 
 ## Built-in Registry

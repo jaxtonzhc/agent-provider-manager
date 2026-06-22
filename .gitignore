@@ -31,3 +31,11 @@ Thumbs.db
 
 # Ruff
 .ruff_cache/
+
+# GUI (Electron + Vite)
+gui/node_modules/
+gui/dist/
+gui/dist-electron/
+gui/release/
+gui/build/icon.iconset/
+!gui/build/icon.icns

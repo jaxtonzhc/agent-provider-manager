@@ -117,6 +117,32 @@ def rename(old_slug: str, new_slug: str) -> None:
     _save(data)
 
 
+def update(name: str, **kwargs) -> None:
+    """Update provider fields. Only non-None kwargs are applied."""
+    data = _load()
+    slug = _resolve_slug(data, name)
+    if slug is None:
+        raise ValueError(f"Provider '{name}' not found")
+    entry = data["providers"][slug]
+    for k, v in kwargs.items():
+        if v is None:
+            continue
+        if k == "base_url":
+            entry["base_url"] = v.rstrip("/")
+        elif k == "anthropic_base_url":
+            if v == "":
+                entry.pop("anthropic_base_url", None)
+            else:
+                entry["anthropic_base_url"] = v.rstrip("/")
+        elif k == "api_key":
+            entry["api_key"] = v
+        elif k == "models":
+            entry["models"] = v if isinstance(v, list) else [m.strip() for m in v.split(",") if m.strip()]
+        elif k == "protocol":
+            entry["protocol"] = v
+    _save(data)
+
+
 def _mask_key(key: str) -> str:
     """Mask API key, showing only prefix and last 2 chars."""
     if len(key) <= 6:

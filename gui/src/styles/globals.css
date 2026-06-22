@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  /* Dark theme colors (default) */
+  --color-bg: #0a0a0a;
+  --color-surface-1: #111111;
+  --color-surface-2: #191919;
+  --color-surface-3: #232323;
+  --color-border: #2e2e2e;
+  --color-border-hover: #444444;
+  --color-text-primary: #ededed;
+  --color-text-secondary: #888888;
+  --color-text-muted: #555555;
+  --color-accent: #0070f3;
+  --color-accent-hover: #0060df;
+  --color-accent-light: rgba(0, 112, 243, 0.1);
+  --color-success: #0cce6b;
+  --color-warning: #f5a623;
+  --color-error: #ee0000;
+  --color-error-light: rgba(238, 0, 0, 0.1);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #fafafa;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f5f5f5;
+  --color-surface-3: #eeeeee;
+  --color-border: #eaeaea;
+  --color-border-hover: #999999;
+  --color-text-primary: #171717;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+  --color-accent: #0070f3;
+  --color-accent-hover: #005cc5;
+  --color-accent-light: rgba(0, 112, 243, 0.08);
+  --color-success: #0cce6b;
+  --color-warning: #f5a623;
+  --color-error: #ee0000;
+  --color-error-light: rgba(238, 0, 0, 0.06);
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.input-field {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-field:focus {
+  border-color: var(--color-accent);
+}
+.input-field::placeholder {
+  color: var(--color-text-muted);
+}
+.input-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
