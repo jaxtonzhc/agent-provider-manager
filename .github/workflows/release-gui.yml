@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
@@ -40,14 +40,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apm-mac
-          path: gui/release/*.{dmg,zip}
+          path: |
+            gui/release/**/*.dmg
+            gui/release/**/*.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            gui/release/*.dmg
-            gui/release/*.zip
+            gui/release/**/*.dmg
+            gui/release/**/*.zip
           generate_release_notes: true
 
   build-linux:
@@ -57,7 +59,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
@@ -79,12 +81,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apm-linux
-          path: gui/release/*.{AppImage,deb}
+          path: |
+            gui/release/**/*.AppImage
+            gui/release/**/*.deb
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            gui/release/*.AppImage
-            gui/release/*.deb
+            gui/release/**/*.AppImage
+            gui/release/**/*.deb
           generate_release_notes: true
