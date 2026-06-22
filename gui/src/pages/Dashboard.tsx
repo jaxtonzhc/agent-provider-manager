@@ -47,13 +47,11 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         {status?.agents.map(agent => (
-          <div key={agent.name} className="flex items-center justify-between px-4 py-3 bg-surface-1 rounded-lg border border-border hover:border-border-hover transition-colors">
-            <div className="flex items-center gap-3">
-              <div className={`w-2 h-2 rounded-full ${agent.synced ? 'bg-success' : 'bg-border'}`} />
-              <span className="text-[13px] font-medium text-text-primary">{agent.name}</span>
-            </div>
+          <div key={agent.name} className="flex items-center gap-3 px-4 py-3 bg-surface-1 rounded-lg border border-border hover:border-border-hover transition-colors min-w-0">
+            <div className={`w-2 h-2 rounded-full shrink-0 ${agent.synced ? 'bg-success' : 'bg-border'}`} />
+            <span className="text-[13px] font-medium text-text-primary shrink-0">{agent.name}</span>
             {agent.provider && agent.provider !== '—' && (
-              <span className="text-[11px] text-text-muted font-mono bg-surface-3 px-2 py-0.5 rounded">{agent.provider}</span>
+              <span className="text-[11px] text-text-muted font-mono bg-surface-3 px-2 py-0.5 rounded truncate ml-auto max-w-[60%]">{agent.provider}</span>
             )}
           </div>
         ))}
