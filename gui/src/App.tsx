@@ -7,8 +7,9 @@ import Providers from './pages/Providers'
 import Agents from './pages/Agents'
 import Sync from './pages/Sync'
 import Snapshots from './pages/Snapshots'
+import Rules from './pages/Rules'
 
-type Page = 'dashboard' | 'providers' | 'agents' | 'sync' | 'snapshots'
+type Page = 'dashboard' | 'providers' | 'agents' | 'sync' | 'snapshots' | 'rules'
 
 export default function App() {
   const [page, setPage] = useState<Page>('dashboard')
@@ -17,7 +18,7 @@ export default function App() {
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent) {
       if (!e.metaKey) return
-      const map: Record<string, Page> = { '1': 'dashboard', '2': 'providers', '3': 'agents', '4': 'sync', '5': 'snapshots' }
+      const map: Record<string, Page> = { '1': 'dashboard', '2': 'providers', '3': 'agents', '4': 'sync', '5': 'snapshots', '6': 'rules' }
       if (map[e.key]) { e.preventDefault(); setPage(map[e.key]) }
       if (e.key === 'd') { e.preventDefault(); toggleThemeGlobal() }
     }
@@ -31,6 +32,7 @@ export default function App() {
     agents: <Agents />,
     sync: <Sync />,
     snapshots: <Snapshots />,
+    rules: <Rules />,
   }
 
   return (

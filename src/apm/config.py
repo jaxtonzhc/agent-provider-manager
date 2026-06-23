@@ -14,37 +14,24 @@ PROVIDERS_FILE = APM_DIR / "providers.json"
 SYNC_STATE_FILE = APM_DIR / "sync-state.json"
 LOG_FILE = APM_DIR / "apm.log"
 
-# Agent config paths
+# Agent config paths (supported agents only)
 CLAUDE_CODE_CONFIG = HOME / ".claude" / "settings.json"
-CODEX_CONFIG = HOME / ".codex" / "config.toml"
-CODEX_AUTH = HOME / ".codex" / "auth.json"
-HERMES_CONFIG = HOME / ".hermes" / "config.yaml"
-HERMES_ENV = HOME / ".hermes" / ".env"
-OPENCLAW_CONFIG = HOME / ".openclaw" / "openclaw.json"
+OPENCODE_CONFIG = HOME / ".config" / "opencode" / "opencode.json"
 ZCODE_CONFIG = HOME / ".zcode" / "v2" / "config.json"
-WORKBUDDY_CONFIG = HOME / ".workbuddy" / "models.json"
-CURSOR_SETTINGS = HOME / ".cursor" / "settings.json"
-AIDER_CONFIG = HOME / ".aider.conf.yml"
-AIDER_ENV = HOME / ".aider.env"
+HERMES_CONFIG = HOME / ".hermes" / "config.yaml"
 PI_CONFIG = HOME / ".pi" / "agent" / "models.json"
 PI_AUTH = HOME / ".pi" / "agent" / "auth.json"
+PI_SETTINGS = HOME / ".pi" / "agent" / "settings.json"
 OMP_CONFIG = HOME / ".omp" / "agent" / "models.json"
 OMP_AUTH = HOME / ".omp" / "agent" / "auth.json"
-
-# CC Switch proxy
-CC_SWITCH_PORT = 15721
-CC_SWITCH_URL = f"http://127.0.0.1:{CC_SWITCH_PORT}"
+OMP_SETTINGS = HOME / ".omp" / "agent" / "settings.json"
 
 # Agent config path registry — single source of truth
 AGENT_CONFIG_PATHS: dict[str, list[Path]] = {
     "claude-code": [CLAUDE_CODE_CONFIG],
-    "codex": [CODEX_CONFIG, CODEX_AUTH],
-    "hermes": [HERMES_CONFIG, HERMES_ENV],
-    "openclaw": [OPENCLAW_CONFIG],
+    "opencode": [OPENCODE_CONFIG],
     "zcode": [ZCODE_CONFIG],
-    "workbuddy": [WORKBUDDY_CONFIG],
-    "cursor": [CURSOR_SETTINGS],
-    "aider": [AIDER_CONFIG, AIDER_ENV],
+    "hermes": [HERMES_CONFIG],
     "pi": [PI_CONFIG, PI_AUTH],
     "omp": [OMP_CONFIG, OMP_AUTH],
 }

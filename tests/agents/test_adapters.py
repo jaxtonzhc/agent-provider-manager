@@ -1,4 +1,4 @@
-"""Tests for agent adapters."""
+"""Tests for agent adapters (supported agents only)."""
 
 from __future__ import annotations
 
@@ -9,10 +9,9 @@ from unittest.mock import patch
 class TestClaudeCodeAdapter:
     def _get_adapter(self):
         from apm.agents.claude_code import ClaudeCodeAdapter
-
         return ClaudeCodeAdapter()
 
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_read_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         with patch("apm.agents.claude_code.CLAUDE_CODE_CONFIG", mock_agent_config["claude_code"]):
             result = adapter.read_provider()
@@ -22,7 +21,7 @@ class TestClaudeCodeAdapter:
         assert result["base_url"] == "https://api.anthropic.com"
         assert result["protocol"] == "anthropic"
 
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_write_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -41,44 +40,20 @@ class TestClaudeCodeAdapter:
         assert data["env"]["ANTHROPIC_AUTH_TOKEN"] == "sk-new-key"
         assert "/anthropic" in data["env"]["ANTHROPIC_BASE_URL"]
 
-    def test_write_provider_anthropic_no_suffix(self, mock_agent_config, tmp_path):
+    def test_has_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        provider = {
-            "name": "Anthropic",
-            "base_url": "https://api.anthropic.com",
-            "api_key": "sk-anthropic",
-            "protocol": "anthropic",
-            "models": ["claude-sonnet-4"],
-        }
-
         with patch("apm.agents.claude_code.CLAUDE_CODE_CONFIG", mock_agent_config["claude_code"]):
-            adapter.write_provider(provider)
+            assert adapter.has_provider({
+                "base_url": "https://api.anthropic.com",
+                "api_key": "sk-claude-test",
+                "protocol": "anthropic",
+            })
+            assert not adapter.has_provider({
+                "base_url": "https://api.other.com",
+                "api_key": "sk-other",
+            })
 
-        with open(mock_agent_config["claude_code"]) as f:
-            data = json.load(f)
-
-        assert "/anthropic" not in data["env"]["ANTHROPIC_BASE_URL"]
-
-
-class TestCodexAdapter:
-    def _get_adapter(self):
-        from apm.agents.codex import CodexAdapter
-
-        return CodexAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
-        adapter = self._get_adapter()
-        with (
-            patch("apm.agents.codex.CODEX_AUTH", mock_agent_config["codex_auth"]),
-            patch("apm.agents.codex.CODEX_CONFIG", mock_agent_config["codex_config"]),
-        ):
-            result = adapter.read_provider()
-
-        assert result is not None
-        assert result["api_key"] == "sk-codex-test"
-        assert result["protocol"] == "responses"
-
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_activate_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -87,37 +62,29 @@ class TestCodexAdapter:
             "protocol": "openai-compatible",
             "models": ["deepseek-chat"],
         }
+        with patch("apm.agents.claude_code.CLAUDE_CODE_CONFIG", mock_agent_config["claude_code"]):
+            adapter.activate_provider(provider, model="deepseek-v4-flash")
 
-        with (
-            patch("apm.agents.codex.CODEX_AUTH", mock_agent_config["codex_auth"]),
-            patch("apm.agents.codex.CODEX_CONFIG", mock_agent_config["codex_config"]),
-            patch("apm.agents.codex.is_port_open", return_value=False),
-        ):
-            adapter.write_provider(provider)
-
-        auth = json.loads(mock_agent_config["codex_auth"].read_text())
-        assert auth["OPENAI_API_KEY"] == "sk-new"
-
-        config = mock_agent_config["codex_config"].read_text()
-        assert "chat_completions" in config
+        data = json.loads(mock_agent_config["claude_code"].read_text())
+        assert data["env"]["ANTHROPIC_MODEL"] == "deepseek-v4-flash"
 
 
-class TestWorkBuddyAdapter:
+class TestOpenCodeAdapter:
     def _get_adapter(self):
-        from apm.agents.workbuddy import WorkBuddyAdapter
+        from apm.agents.opencode import OpenCodeAdapter
+        return OpenCodeAdapter()
 
-        return WorkBuddyAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_read_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        with patch("apm.agents.workbuddy.WORKBUDDY_CONFIG", mock_agent_config["workbuddy_config"]):
+        with patch("apm.agents.opencode.OPENCODE_CONFIG", mock_agent_config["opencode_config"]):
             result = adapter.read_provider()
 
         assert result is not None
-        assert result["api_key"] == "sk-workbuddy-test"
+        assert result["api_key"] == "sk-opencode-test"
         assert result["base_url"] == "https://api.test.com/v1"
+        assert result["model"] == "test-model"
 
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_write_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -125,56 +92,46 @@ class TestWorkBuddyAdapter:
             "api_key": "sk-new",
             "protocol": "openai-compatible",
             "models": ["deepseek-chat", "deepseek-reasoner"],
+            "model_meta": {"deepseek-chat": {"name": "DeepSeek Chat", "context": 65536}},
         }
-
-        with patch("apm.agents.workbuddy.WORKBUDDY_CONFIG", mock_agent_config["workbuddy_config"]):
+        with patch("apm.agents.opencode.OPENCODE_CONFIG", mock_agent_config["opencode_config"]):
             adapter.write_provider(provider)
 
-        models = json.loads(mock_agent_config["workbuddy_config"].read_text())
-        assert len(models) == 2
-        assert models[0]["id"] == "deepseek-chat"
-        assert models[0]["apiKey"] == "sk-new"
+        data = json.loads(mock_agent_config["opencode_config"].read_text())
+        assert "deepseek" in data["provider"]
+        prov = data["provider"]["deepseek"]
+        assert prov["options"]["apiKey"] == "sk-new"
+        assert prov["options"]["baseURL"] == "https://api.deepseek.com/v1"
+        assert "deepseek-chat" in prov["models"]
 
-
-class TestHermesAdapter:
-    def _get_adapter(self):
-        from apm.agents.hermes import HermesAdapter
-
-        return HermesAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_activate_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        with patch("apm.agents.hermes.HERMES_CONFIG", mock_agent_config["hermes_config"]):
-            result = adapter.read_provider()
+        provider = {"name": "Test Provider", "models": ["test-model"]}
+        with patch("apm.agents.opencode.OPENCODE_CONFIG", mock_agent_config["opencode_config"]):
+            adapter.activate_provider(provider, model="new-model")
 
-        assert result is not None
-        assert result["api_key"] == "sk-hermes-test"
-        assert result["base_url"] == "https://api.test.com/v1"
+        data = json.loads(mock_agent_config["opencode_config"].read_text())
+        assert data["model"] == "test-provider/new-model"
 
-
-class TestOpenClawAdapter:
-    def _get_adapter(self):
-        from apm.agents.openclaw import OpenClawAdapter
-
-        return OpenClawAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_has_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        with patch("apm.agents.openclaw.OPENCLAW_CONFIG", mock_agent_config["openclaw_config"]):
-            result = adapter.read_provider()
-
-        assert result is not None
-        assert result["api_key"] == "sk-openclaw-test"
-        assert result["base_url"] == "https://api.test.com/v1"
+        with patch("apm.agents.opencode.OPENCODE_CONFIG", mock_agent_config["opencode_config"]):
+            assert adapter.has_provider({
+                "base_url": "https://api.test.com/v1",
+                "api_key": "sk-opencode-test",
+            })
+            assert not adapter.has_provider({
+                "base_url": "https://api.other.com/v1",
+                "api_key": "sk-other",
+            })
 
 
 class TestZCodeAdapter:
     def _get_adapter(self):
         from apm.agents.zcode import ZCodeAdapter
-
         return ZCodeAdapter()
 
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_read_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         with patch("apm.agents.zcode.ZCODE_CONFIG", mock_agent_config["zcode_config"]):
             result = adapter.read_provider()
@@ -183,24 +140,7 @@ class TestZCodeAdapter:
         assert result["api_key"] == "sk-zcode-test"
         assert result["base_url"] == "https://api.test.com/v1"
 
-
-class TestCursorAdapter:
-    def _get_adapter(self):
-        from apm.agents.cursor import CursorAdapter
-
-        return CursorAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
-        adapter = self._get_adapter()
-        with patch("apm.agents.cursor.CURSOR_SETTINGS", mock_agent_config["cursor_settings"]):
-            result = adapter.read_provider()
-
-        assert result is not None
-        assert result["api_key"] == "sk-cursor-test"
-        assert result["base_url"] == "https://api.test.com/v1"
-        assert result["model"] == "gpt-4"
-
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_write_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -209,65 +149,91 @@ class TestCursorAdapter:
             "protocol": "openai-compatible",
             "models": ["deepseek-chat"],
         }
-
-        with patch("apm.agents.cursor.CURSOR_SETTINGS", mock_agent_config["cursor_settings"]):
+        with patch("apm.agents.zcode.ZCODE_CONFIG", mock_agent_config["zcode_config"]):
             adapter.write_provider(provider)
 
-        data = json.loads(mock_agent_config["cursor_settings"].read_text())
-        assert data["openai.apiKey"] == "sk-new"
-        assert data["openai.baseUrl"] == "https://api.deepseek.com/v1"
-        assert data["openai.model"] == "deepseek-chat"
+        data = json.loads(mock_agent_config["zcode_config"].read_text())
+        provs = {k: v for k, v in data["provider"].items() if v.get("name") == "DeepSeek"}
+        assert len(provs) == 1
+        prov = next(iter(provs.values()))
+        assert prov["options"]["apiKey"] == "sk-new"
+        assert prov["enabled"] is True
 
-
-class TestAiderAdapter:
-    def _get_adapter(self):
-        from apm.agents.aider import AiderAdapter
-
-        return AiderAdapter()
-
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_activate_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        with (
-            patch("apm.agents.aider.AIDER_CONFIG", mock_agent_config["aider_conf"]),
-            patch("apm.agents.aider.AIDER_ENV", mock_agent_config["aider_env"]),
-        ):
+        provider = {
+            "name": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
+            "api_key": "sk-new", "models": [],
+        }
+        # Write first, then activate
+        with patch("apm.agents.zcode.ZCODE_CONFIG", mock_agent_config["zcode_config"]):
+            adapter.write_provider(provider)
+            adapter.activate_provider(provider)
+
+        data = json.loads(mock_agent_config["zcode_config"].read_text())
+        for k, v in data["provider"].items():
+            if v.get("name") == "DeepSeek":
+                assert v["enabled"] is True
+            elif k != "test-uuid":
+                assert v["enabled"] is False
+
+    def test_has_provider(self, mock_agent_config):
+        adapter = self._get_adapter()
+        with patch("apm.agents.zcode.ZCODE_CONFIG", mock_agent_config["zcode_config"]):
+            assert adapter.has_provider({
+                "base_url": "https://api.test.com/v1",
+                "api_key": "sk-zcode-test",
+            })
+            assert not adapter.has_provider({
+                "base_url": "https://api.other.com",
+                "api_key": "sk-other",
+            })
+
+
+class TestHermesAdapter:
+    def _get_adapter(self):
+        from apm.agents.hermes import HermesAdapter
+        return HermesAdapter()
+
+    def test_read_provider(self, mock_agent_config):
+        adapter = self._get_adapter()
+        with patch("apm.agents.hermes.HERMES_CONFIG", mock_agent_config["hermes_config"]):
             result = adapter.read_provider()
 
         assert result is not None
-        assert result["api_key"] == "sk-aider-test"
+        assert result["api_key"] == "sk-hermes-test"
         assert result["base_url"] == "https://api.test.com/v1"
+        assert result["model"] == "test-model"
 
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_has_provider(self, mock_agent_config):
         adapter = self._get_adapter()
-        provider = {
-            "name": "DeepSeek",
-            "base_url": "https://api.deepseek.com/v1",
-            "api_key": "sk-new",
-            "protocol": "openai-compatible",
-            "models": ["deepseek-chat"],
-        }
+        with patch("apm.agents.hermes.HERMES_CONFIG", mock_agent_config["hermes_config"]):
+            assert adapter.has_provider({
+                "base_url": "https://api.test.com/v1",
+                "api_key": "sk-hermes-test",
+            })
+            assert not adapter.has_provider({
+                "base_url": "https://api.other.com",
+                "api_key": "sk-other",
+            })
 
-        with (
-            patch("apm.agents.aider.AIDER_CONFIG", mock_agent_config["aider_conf"]),
-            patch("apm.agents.aider.AIDER_ENV", mock_agent_config["aider_env"]),
-        ):
-            adapter.write_provider(provider)
+    def test_activate_provider(self, mock_agent_config):
+        adapter = self._get_adapter()
+        provider = {"name": "NewProv", "models": ["new-model"]}
+        with patch("apm.agents.hermes.HERMES_CONFIG", mock_agent_config["hermes_config"]):
+            adapter.activate_provider(provider, model="new-model")
 
-        env = mock_agent_config["aider_env"].read_text()
-        assert "OPENAI_API_KEY=sk-new" in env
-        assert "OPENAI_API_BASE=https://api.deepseek.com/v1" in env
-
-        conf = mock_agent_config["aider_conf"].read_text()
-        assert "openai-api-base: https://api.deepseek.com/v1" in conf
+        text = mock_agent_config["hermes_config"].read_text()
+        assert "default: new-model" in text
+        assert "provider: newprov" in text
 
 
 class TestPiAdapter:
     def _get_adapter(self):
         from apm.agents.pi import PiAdapter
-
         return PiAdapter()
 
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_read_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         with patch("apm.agents.pi.PI_CONFIG", mock_agent_config["pi_config"]):
             result = adapter.read_provider()
@@ -276,7 +242,7 @@ class TestPiAdapter:
         assert result["api_key"] == "sk-pi-test"
         assert result["base_url"] == "https://api.test.com/v1"
 
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_write_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -285,7 +251,6 @@ class TestPiAdapter:
             "protocol": "openai-compatible",
             "models": ["deepseek-chat"],
         }
-
         with patch("apm.agents.pi.PI_CONFIG", mock_agent_config["pi_config"]):
             adapter.write_provider(provider)
 
@@ -294,16 +259,37 @@ class TestPiAdapter:
         assert prov["apiKey"] == "sk-new"
         assert prov["baseUrl"] == "https://api.deepseek.com/v1"
         assert len(prov["models"]) == 1
-        assert prov["models"][0]["id"] == "deepseek-chat"
+
+    def test_activate_provider(self, mock_agent_config):
+        adapter = self._get_adapter()
+        provider = {
+            "name": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
+            "api_key": "sk-new", "models": ["deepseek-chat"],
+        }
+        with patch("apm.agents.pi.PI_CONFIG", mock_agent_config["pi_config"]), \
+             patch("apm.agents.pi.PI_SETTINGS", mock_agent_config["pi_settings"]):
+            adapter.write_provider(provider)
+            adapter.activate_provider(provider)
+
+        settings = json.loads(mock_agent_config["pi_settings"].read_text())
+        assert settings["defaultProvider"] == "deepseek"
+        assert settings["defaultModel"] == "deepseek-chat"
+
+    def test_has_provider(self, mock_agent_config):
+        adapter = self._get_adapter()
+        with patch("apm.agents.pi.PI_CONFIG", mock_agent_config["pi_config"]):
+            assert adapter.has_provider({
+                "base_url": "https://api.test.com/v1",
+                "api_key": "sk-pi-test",
+            })
 
 
 class TestOmpAdapter:
     def _get_adapter(self):
         from apm.agents.pi import OmpAdapter
-
         return OmpAdapter()
 
-    def test_read_provider(self, mock_agent_config, tmp_path):
+    def test_read_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         with patch("apm.agents.pi.OMP_CONFIG", mock_agent_config["omp_config"]):
             result = adapter.read_provider()
@@ -312,7 +298,7 @@ class TestOmpAdapter:
         assert result["api_key"] == "sk-omp-test"
         assert result["base_url"] == "https://api.test.com/v1"
 
-    def test_write_provider(self, mock_agent_config, tmp_path):
+    def test_write_provider(self, mock_agent_config):
         adapter = self._get_adapter()
         provider = {
             "name": "DeepSeek",
@@ -321,7 +307,6 @@ class TestOmpAdapter:
             "protocol": "openai-compatible",
             "models": ["deepseek-chat"],
         }
-
         with patch("apm.agents.pi.OMP_CONFIG", mock_agent_config["omp_config"]):
             adapter.write_provider(provider)
 

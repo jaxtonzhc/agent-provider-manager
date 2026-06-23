@@ -4,6 +4,7 @@ const navItems = [
   { id: 'agents', label: 'Agents', icon: <IconBot /> },
   { id: 'sync', label: 'Sync', icon: <IconSync /> },
   { id: 'snapshots', label: 'Snapshots', icon: <IconArchive /> },
+  { id: 'rules', label: 'Rules', icon: <IconRules /> },
 ] as const
 
 type Page = typeof navItems[number]['id']
@@ -59,4 +60,7 @@ function IconSync() {
 }
 function IconArchive() {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="12" height="3" rx="1"/><path d="M3 5v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5"/><line x1="6" y1="8" x2="10" y2="8"/></svg>
+}
+function IconRules() {
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="9" y2="11"/></svg>
 }

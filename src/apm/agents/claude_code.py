@@ -2,6 +2,9 @@
 
 Config: ~/.claude/settings.json
 Fields: env.ANTHROPIC_AUTH_TOKEN, env.ANTHROPIC_BASE_URL, env.ANTHROPIC_MODEL
+
+Claude Code is single-provider: write_provider and activate_provider are the same
+(it always uses whatever env vars are set).
 """
 
 from __future__ import annotations
@@ -18,11 +21,16 @@ class ClaudeCodeAdapter(AgentAdapter):
     def is_installed(self) -> bool:
         return CLAUDE_CODE_CONFIG.exists()
 
-    def read_provider(self) -> dict | None:
+    def _load(self) -> dict:
         if not CLAUDE_CODE_CONFIG.exists():
-            return None
-        with open(CLAUDE_CODE_CONFIG) as f:
-            data = json.load(f)
+            return {}
+        try:
+            return json.loads(CLAUDE_CODE_CONFIG.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+    def read_provider(self) -> dict | None:
+        data = self._load()
         env = data.get("env", {})
         key = env.get("ANTHROPIC_AUTH_TOKEN")
         url = env.get("ANTHROPIC_BASE_URL")
@@ -31,28 +39,26 @@ class ClaudeCodeAdapter(AgentAdapter):
             return None
         return {"base_url": url, "api_key": key, "model": model, "protocol": "anthropic"}
 
+    def _resolve_url(self, provider: dict) -> str:
+        anthro_url = provider.get("anthropic_base_url", "")
+        if anthro_url:
+            return anthro_url.rstrip("/")
+        base_url = provider["base_url"].rstrip("/")
+        if provider.get("protocol") == "openai-compatible":
+            if not base_url.endswith("/anthropic"):
+                import re
+                base_url = re.sub(r"/v\d+$", "/anthropic", base_url)
+                if not base_url.endswith("/anthropic"):
+                    base_url += "/anthropic"
+        return base_url
+
     def write_provider(self, provider: dict) -> None:
         if CLAUDE_CODE_CONFIG.exists():
             self.backup(CLAUDE_CODE_CONFIG)
-            with open(CLAUDE_CODE_CONFIG) as f:
-                data = json.load(f)
-        else:
-            data = {}
+        data = self._load()
 
         env = data.setdefault("env", {})
-
-        # Prefer explicit anthropic URL if available
-        anthro_url = provider.get("anthropic_base_url", "")
-        if anthro_url:
-            base_url = anthro_url.rstrip("/")
-        else:
-            base_url = provider["base_url"].rstrip("/")
-            if provider.get("protocol") == "openai-compatible":
-                if not base_url.endswith("/anthropic"):
-                    import re
-                    base_url = re.sub(r"/v\d+$", "/anthropic", base_url)
-                    if not base_url.endswith("/anthropic"):
-                        base_url += "/anthropic"
+        base_url = self._resolve_url(provider)
 
         env["ANTHROPIC_AUTH_TOKEN"] = provider["api_key"]
         env["ANTHROPIC_BASE_URL"] = base_url
@@ -65,3 +71,23 @@ class ClaudeCodeAdapter(AgentAdapter):
             env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = models[-1] if len(models) > 1 else models[0]
 
         atomic_write(CLAUDE_CODE_CONFIG, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+    def activate_provider(self, provider: dict, model: str | None = None) -> None:
+        """For Claude Code, activate = write (single-provider agent)."""
+        self.write_provider(provider)
+        if model:
+            data = self._load()
+            env = data.setdefault("env", {})
+            env["ANTHROPIC_MODEL"] = model
+            env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = model
+            atomic_write(CLAUDE_CODE_CONFIG, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+    def has_provider(self, provider: dict) -> bool:
+        current = self.read_provider()
+        if not current:
+            return False
+        target_url = self._resolve_url(provider)
+        return (
+            current.get("base_url", "").rstrip("/") == target_url
+            and current.get("api_key") == provider.get("api_key")
+        )

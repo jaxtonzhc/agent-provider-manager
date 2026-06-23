@@ -479,8 +479,21 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
 
 def cmd_switch(args: argparse.Namespace) -> None:
-    """Switch all agents to a provider (alias for sync)."""
-    cmd_sync(args)
+    """Switch all agents to a provider (write config if needed + activate)."""
+    from apm.sync import print_sync_results, switch_provider
+
+    provider_name = getattr(args, "provider", None)
+    if not provider_name:
+        provider_name = _pick_configured_provider()
+        if not provider_name:
+            return
+
+    agents = None
+    if args.agents:
+        agents = [a.strip() for a in args.agents.split(",")]
+    model = getattr(args, "model", None)
+    results = switch_provider(provider_name, model=model, agents=agents, dry_run=args.dry_run)
+    print_sync_results(results, args.dry_run)
 
 
 def cmd_update(_args: argparse.Namespace) -> None:
@@ -674,6 +687,40 @@ def cmd_undo(_args: argparse.Namespace) -> None:
     print(f"  {green('✓')} Undo complete.")
 
 
+def cmd_rules(args: argparse.Namespace) -> None:
+    """Global rules management — inject reference to shared rules."""
+    sub = getattr(args, "subcommand", None)
+    source_arg = getattr(args, "source", None)
+
+    if not sub or sub == "status":
+        if getattr(args, "json", False):
+            import json as json_mod
+
+            from apm.rules import _get_source_path, rules_status
+            src = _get_source_path()
+            data = {
+                "source": str(src) if src else None,
+                "sourceExists": src.exists() if src else False,
+                "agents": rules_status(),
+            }
+            print(json_mod.dumps(data, ensure_ascii=False))
+        else:
+            from apm.rules import print_rules_status
+            print_rules_status()
+    elif sub == "sync":
+
+        from apm.rules import inject_reference, print_inject_results, setup_rules_source
+
+        source = None
+        if source_arg:
+            source = setup_rules_source(source_arg)
+        results = inject_reference(source=source)
+        print_inject_results(results)
+    elif sub == "set-source":
+        from apm.rules import setup_rules_source
+        setup_rules_source(source_arg)
+
+
 def cmd_version(_args: argparse.Namespace) -> None:
     """Print version."""
     print(f"apm {__version__}")
@@ -768,9 +815,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync.add_argument("--agents", help="Comma-separated agent names")
     p_sync.add_argument("--dry-run", action="store_true", help="Preview changes")
 
-    # switch (alias)
-    p_switch = sub.add_parser("switch", help="Switch all agents to provider")
+    # switch
+    p_switch = sub.add_parser("switch", help="Switch all agents to provider (write + activate)")
     p_switch.add_argument("provider", nargs="?", help="Provider name (interactive if omitted)")
+    p_switch.add_argument("--model", help="Specific model to activate")
     p_switch.add_argument("--agents", help="Comma-separated agent names")
     p_switch.add_argument("--dry-run", action="store_true", help="Preview changes")
 
@@ -795,6 +843,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     # undo
     sub.add_parser("undo", help="Undo last sync (restore auto-snapshot)")
+
+    # rules
+    p_rules = sub.add_parser("rules", help="Global rules/prompt management")
+    p_rules.add_argument("--source", help="Path to global rules file")
+    rules_sub = p_rules.add_subparsers(dest="subcommand")
+    rules_sub.add_parser("status", help="Check if agents reference global rules")
+    p_rules_sync = rules_sub.add_parser("sync", help="Inject global rules reference into agents")
+    p_rules_sync.add_argument("--source", help="Path to global rules file")
+    p_rules_set = rules_sub.add_parser("set-source", help="Configure global rules source path")
+    p_rules_set.add_argument("source", nargs="?", help="Path to global rules file")
 
     # snapshot
     p_snap = sub.add_parser("snapshot", help="Save/restore agent configs")
@@ -845,6 +903,7 @@ def main(argv: list[str] | None = None) -> None:
         "agents": cmd_agents,
         "providers": cmd_providers,
         "snapshot": cmd_snapshot,
+        "rules": cmd_rules,
         "init": cmd_init,
         "undo": cmd_undo,
         "version": cmd_version,

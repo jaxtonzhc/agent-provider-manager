@@ -66,54 +66,53 @@ def mock_agent_config(tmp_path):
     )
     configs["claude_code"] = claude_settings
 
-    # Codex
-    codex_dir = tmp_path / ".codex"
-    codex_dir.mkdir()
-    codex_config = codex_dir / "config.toml"
-    codex_config.write_text(
-        'model_provider = "custom"\n\n[model_providers.custom]\nwire_api = "responses"\n'
-    )
-    codex_auth = codex_dir / "auth.json"
-    codex_auth.write_text(json.dumps({"OPENAI_API_KEY": "sk-codex-test"}))
-    configs["codex_config"] = codex_config
-    configs["codex_auth"] = codex_auth
 
-    # Hermes
+    # Hermes (custom_providers format + .env)
     hermes_dir = tmp_path / ".hermes"
     hermes_dir.mkdir()
     hermes_config = hermes_dir / "config.yaml"
     hermes_yaml = (
-        "model:\n  default: test-model\n  provider: test\n"
-        "  base_url: https://api.test.com/v1\n  api_key: sk-hermes-test\n"
+        "model:\n"
+        "  default: test-model\n"
+        "  provider: testprov\n"
+        "custom_providers:\n"
+        "- name: testprov\n"
+        "  base_url: https://api.test.com/v1\n"
+        "  api_key: sk-hermes-test\n"
+        "  api_mode: chat_completions\n"
+        "  model: test-model\n"
+        "  models:\n"
+        "    test-model:\n"
+        "      context_length: 128000\n"
+        "      name: Test Model\n"
     )
     hermes_config.write_text(hermes_yaml)
     hermes_env = hermes_dir / ".env"
-    hermes_env.write_text("TEST_API_KEY=sk-hermes-test\n")
+    hermes_env.write_text("TESTPROV_API_KEY=sk-hermes-test\nTESTPROV_BASE_URL=https://api.test.com/v1\n")
     configs["hermes_config"] = hermes_config
     configs["hermes_env"] = hermes_env
 
-    # OpenClaw
-    openclaw_dir = tmp_path / ".openclaw"
-    openclaw_dir.mkdir()
-    openclaw_config = openclaw_dir / "openclaw.json"
-    openclaw_config.write_text(
-        json.dumps(
-            {
-                "models": {
-                    "mode": "merge",
-                    "providers": {
-                        "test-provider": {
-                            "baseUrl": "https://api.test.com/v1",
-                            "api": "openai-completions",
-                            "apiKey": "sk-openclaw-test",
-                            "models": [{"id": "test-model", "name": "Test"}],
-                        }
-                    },
-                }
+    # OpenCode
+    opencode_dir = tmp_path / ".config" / "opencode"
+    opencode_dir.mkdir(parents=True)
+    opencode_config = opencode_dir / "opencode.json"
+    opencode_config.write_text(json.dumps({
+        "$schema": "https://opencode.ai/config.json",
+        "model": "testprov/test-model",
+        "provider": {
+            "testprov": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "Test Provider",
+                "options": {
+                    "baseURL": "https://api.test.com/v1",
+                    "apiKey": "sk-opencode-test",
+                },
+                "models": {"test-model": {"name": "Test Model"}},
             }
-        )
-    )
-    configs["openclaw_config"] = openclaw_config
+        },
+    }))
+    configs["opencode_config"] = opencode_config
+
 
     # ZCode
     zcode_dir = tmp_path / ".zcode" / "v2"
@@ -140,50 +139,6 @@ def mock_agent_config(tmp_path):
     )
     configs["zcode_config"] = zcode_config
 
-    # WorkBuddy
-    workbuddy_dir = tmp_path / ".workbuddy"
-    workbuddy_dir.mkdir()
-    workbuddy_config = workbuddy_dir / "models.json"
-    workbuddy_config.write_text(
-        json.dumps(
-            [
-                {
-                    "id": "test-model",
-                    "name": "Test Model",
-                    "vendor": "Custom",
-                    "url": "https://api.test.com/v1",
-                    "apiKey": "sk-workbuddy-test",
-                    "supportsToolCall": True,
-                    "supportsImages": False,
-                    "supportsReasoning": True,
-                    "useCustomProtocol": False,
-                    "reasoning": {"supportedEfforts": ["medium", "high"]},
-                }
-            ]
-        )
-    )
-    configs["workbuddy_config"] = workbuddy_config
-
-    # Cursor
-    cursor_dir = tmp_path / ".cursor"
-    cursor_dir.mkdir()
-    cursor_settings = cursor_dir / "settings.json"
-    cursor_settings.write_text(
-        json.dumps({
-            "openai.baseUrl": "https://api.test.com/v1",
-            "openai.apiKey": "sk-cursor-test",
-            "openai.model": "gpt-4",
-        })
-    )
-    configs["cursor_settings"] = cursor_settings
-
-    # Aider
-    aider_conf = tmp_path / ".aider.conf.yml"
-    aider_conf.write_text("openai-api-base: https://api.test.com/v1\n")
-    aider_env = tmp_path / ".aider.env"
-    aider_env.write_text("OPENAI_API_KEY=sk-aider-test\n")
-    configs["aider_conf"] = aider_conf
-    configs["aider_env"] = aider_env
 
     # Pi
     pi_dir = tmp_path / ".pi" / "agent"
@@ -200,6 +155,11 @@ def mock_agent_config(tmp_path):
         }
     }))
     configs["pi_config"] = pi_config
+    pi_settings = pi_dir / "settings.json"
+    pi_settings.write_text(json.dumps({
+        "defaultProvider": "test-prov", "defaultModel": "test-model"
+    }))
+    configs["pi_settings"] = pi_settings
 
     # OMP
     omp_dir = tmp_path / ".omp" / "agent"
@@ -216,5 +176,10 @@ def mock_agent_config(tmp_path):
         }
     }))
     configs["omp_config"] = omp_config
+    omp_settings = omp_dir / "settings.json"
+    omp_settings.write_text(json.dumps({
+        "defaultProvider": "test-prov", "defaultModel": "test-model"
+    }))
+    configs["omp_settings"] = omp_settings
 
     return configs

@@ -1,4 +1,9 @@
-"""Sync engine — push provider config to agents."""
+"""Sync engine — push provider config to agents.
+
+Two operations:
+  - sync: write provider config (smart: skip if already identical)
+  - switch: write + activate (enable provider and optionally set model)
+"""
 
 from __future__ import annotations
 
@@ -15,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 def _load_state() -> dict:
-    """Load sync state from disk."""
     if SYNC_STATE_FILE.exists():
         with open(SYNC_STATE_FILE) as f:
             return json.load(f)
@@ -23,7 +27,6 @@ def _load_state() -> dict:
 
 
 def _save_state(state: dict) -> None:
-    """Save sync state to disk."""
     atomic_write(SYNC_STATE_FILE, json.dumps(state, indent=2, ensure_ascii=False) + "\n")
 
 
@@ -32,7 +35,7 @@ def sync_provider(
     agents: list[str] | None = None,
     dry_run: bool = False,
 ) -> list[dict]:
-    """Sync a provider to specified agents (or all installed).
+    """Smart sync: write provider config, skip if already present with same URL+key.
 
     Returns:
         list of results: [{agent, status, message}]
@@ -51,7 +54,6 @@ def sync_provider(
     if not targets:
         return [{"agent": None, "status": "warning", "message": "No installed agents found"}]
 
-    # Auto-snapshot before sync (unless dry-run)
     snapshot_name = None
     if not dry_run:
         try:
@@ -80,15 +82,29 @@ def sync_provider(
 
         try:
             if dry_run:
-                current = adapter.read_provider()
-                results.append({
-                    "agent": agent_name,
-                    "status": "dry-run",
-                    "message": _format_change(current, provider),
-                })
+                if adapter.has_provider(provider):
+                    results.append({
+                        "agent": agent_name,
+                        "status": "dry-run",
+                        "message": "SKIP (already configured with same URL+key)",
+                    })
+                else:
+                    current = adapter.read_provider()
+                    results.append({
+                        "agent": agent_name,
+                        "status": "dry-run",
+                        "message": _format_change(current, provider),
+                    })
             else:
-                adapter.write_provider(provider)
-                results.append({"agent": agent_name, "status": "synced", "message": "OK"})
+                if adapter.has_provider(provider):
+                    results.append({
+                        "agent": agent_name,
+                        "status": "skipped",
+                        "message": "Already configured (same URL+key)",
+                    })
+                else:
+                    adapter.write_provider(provider)
+                    results.append({"agent": agent_name, "status": "synced", "message": "OK"})
         except Exception as e:
             results.append({"agent": agent_name, "status": "error", "message": str(e)})
 
@@ -110,6 +126,89 @@ def sync_provider(
                 logger.info("Cleaned up %d old auto-snapshots", cleaned)
         except Exception as e:
             logger.debug("Auto-snapshot cleanup failed: %s", e)
+
+    return results
+
+
+def switch_provider(
+    provider_name: str,
+    model: str | None = None,
+    agents: list[str] | None = None,
+    dry_run: bool = False,
+) -> list[dict]:
+    """Switch = sync + activate. Write config if needed, then enable the provider.
+
+    Args:
+        provider_name: slug of the provider to switch to
+        model: specific model to activate (None = use first available)
+        agents: list of agent names (None = all installed)
+        dry_run: if True, only preview changes
+    """
+    _provider = get_provider(provider_name)
+    if not _provider:
+        return [
+            {"agent": None, "status": "error", "message": f"Provider '{provider_name}' not found"}
+        ]
+    provider = dict(_provider)
+    if "model_meta" in provider and "_model_meta" not in provider:
+        provider["_model_meta"] = provider["model_meta"]
+
+    targets = agents if agents else get_installed_agents()
+    if not targets:
+        return [{"agent": None, "status": "warning", "message": "No installed agents found"}]
+
+    snapshot_name = None
+    if not dry_run:
+        try:
+            from apm.snapshot import save_snapshot
+            ts = datetime.now().strftime("%Y%m%d%H%M%S")
+            snapshot_name = f"auto-pre-switch-{provider_name}-{ts}"
+            save_snapshot(name=snapshot_name, agents=targets)
+        except Exception as e:
+            logger.warning("Auto-snapshot failed: %s", e)
+
+    results: list[dict] = []
+    for agent_name in targets:
+        adapter = ADAPTERS.get(agent_name)
+        if not adapter:
+            results.append({"agent": agent_name, "status": "error", "message": "Unknown agent"})
+            continue
+
+        det = detect_agent(agent_name)
+        if not det["installed"]:
+            results.append({"agent": agent_name, "status": "skipped", "message": "Not installed"})
+            continue
+
+        try:
+            if dry_run:
+                already = adapter.has_provider(provider)
+                msg = "ACTIVATE" if already else "WRITE + ACTIVATE"
+                if model:
+                    msg += f" (model={model})"
+                results.append({"agent": agent_name, "status": "dry-run", "message": msg})
+            else:
+                if not adapter.has_provider(provider):
+                    adapter.write_provider(provider)
+                adapter.activate_provider(provider, model=model)
+                results.append({
+                    "agent": agent_name,
+                    "status": "switched",
+                    "message": f"Active → {provider_name}" + (f"/{model}" if model else ""),
+                })
+        except Exception as e:
+            results.append({"agent": agent_name, "status": "error", "message": str(e)})
+
+    if not dry_run:
+        state = _load_state()
+        for r in results:
+            if r["status"] == "switched":
+                state["syncs"][r["agent"]] = {
+                    "provider": provider_name,
+                    "model": model,
+                    "synced_at": datetime.now(timezone.utc).isoformat(),
+                    "snapshot": snapshot_name,
+                }
+        _save_state(state)
 
     return results
 
@@ -179,6 +278,7 @@ def print_sync_results(results: list[dict], dry_run: bool = False) -> None:
     print("  " + "=" * 50)
     color_map = {
         "synced": lambda t: f"{green('✓')}  {t}",
+        "switched": lambda t: f"{green('⚡')} {t}",
         "error": lambda t: f"{red('✗')}  {t}",
         "skipped": lambda t: f"{dim('⊘')}  {dim(t)}",
         "dry-run": lambda t: f"{cyan('→')}  {t}",

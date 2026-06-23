@@ -13,7 +13,10 @@ class AgentAdapter(ABC):
     """Base class for agent config adapters.
 
     Each adapter knows how to read and write provider configuration
-    for a specific AI coding agent.
+    for a specific AI coding agent.  Subclasses must implement:
+      - is_installed / read_provider / write_provider (CRUD)
+      - activate_provider (set as active/enabled)
+      - has_provider (duplicate detection)
     """
 
     name: str  # agent identifier, e.g. "claude-code"
@@ -38,6 +41,27 @@ class AgentAdapter(ABC):
         Args:
             provider: dict with keys: name, base_url, api_key, protocol, models
         """
+
+    @abstractmethod
+    def activate_provider(self, provider: dict, model: str | None = None) -> None:
+        """Activate/enable the provider (and optionally select a model).
+
+        After this call the agent should use this provider for requests.
+        """
+
+    def has_provider(self, provider: dict) -> bool:
+        """Check if this provider is already configured with the same URL+key.
+
+        Default implementation compares base_url and api_key with read_provider().
+        Subclasses with multi-provider support should override to check all entries.
+        """
+        current = self.read_provider()
+        if not current:
+            return False
+        return (
+            current.get("base_url", "").rstrip("/") == provider.get("base_url", "").rstrip("/")
+            and current.get("api_key") == provider.get("api_key")
+        )
 
     @staticmethod
     def backup(path: Path) -> None:

@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
+import { exec } from 'child_process'
 import { execApm } from './apm-bridge'
 
 let win: BrowserWindow | null = null
@@ -38,5 +39,14 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 
 ipcMain.handle('apm:exec', async (_event, args: string[]) => {
+  // Intercept --open-file command to open in editor
+  if (args[0] === '--open-file' && args[1]) {
+    const filePath = args[1]
+    // Try code (VSCode), then fall back to system default
+    exec(`code "${filePath}"`, (err) => {
+      if (err) shell.openPath(filePath)
+    })
+    return { stdout: '', stderr: '', code: 0 }
+  }
   return execApm(args)
 })

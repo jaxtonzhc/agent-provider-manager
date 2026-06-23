@@ -70,6 +70,7 @@ class TestSyncProvider:
     def test_successful_sync(self, mock_config):
         mock_adapter = MagicMock()
         mock_adapter.is_installed.return_value = True
+        mock_adapter.has_provider.return_value = False
         mock_adapter.read_provider.return_value = {"base_url": "https://old.com"}
 
         with (
@@ -89,6 +90,7 @@ class TestSyncProvider:
     def test_sync_error_handling(self, mock_config):
         mock_adapter = MagicMock()
         mock_adapter.is_installed.return_value = True
+        mock_adapter.has_provider.return_value = False
         mock_adapter.write_provider.side_effect = PermissionError("denied")
 
         with (
@@ -123,6 +125,7 @@ class TestSyncProvider:
     def test_auto_snapshot_failure_doesnt_crash(self, mock_config):
         mock_adapter = MagicMock()
         mock_adapter.is_installed.return_value = True
+        mock_adapter.has_provider.return_value = False
 
         with (
             patch("apm.sync.get_provider", return_value={"name": "test"}),
