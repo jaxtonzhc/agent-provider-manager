@@ -7,5 +7,6 @@ export default defineConfig({
   plugins: [tailwindcss(), react()],
   base: './',
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
-  server: { port: 5173 },
+  clearScreen: false,
+  server: { port: 5173, strictPort: true },
 })
