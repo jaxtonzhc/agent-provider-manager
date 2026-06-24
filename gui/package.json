@@ -7,73 +7,32 @@
     "email": "jaxtonzhc@gmail.com"
   },
   "homepage": "https://github.com/jaxtonzhc/agent-provider-manager",
-  "main": "dist-electron/main.js",
+  "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:build": "tsc -p electron/tsconfig.json",
-    "electron:dev": "npm run electron:build && electron .",
-    "pack": "npm run build && npm run electron:build && electron-builder --dir",
-    "dist": "npm run build && npm run electron:build && electron-builder",
-    "dist:mac": "npm run build && npm run electron:build && electron-builder --mac",
-    "dist:win": "npm run build && npm run electron:build && electron-builder --win",
-    "dist:linux": "npm run build && npm run electron:build && electron-builder --linux",
-    "start": "npm run dev"
-  },
-  "build": {
-    "appId": "com.apm.gui",
-    "productName": "APM",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "category": "public.app-category.developer-tools",
-      "icon": "build/icon.icns"
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "zip"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Development"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+    "tauri": "tauri"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "autoprefixer": "^10",
-    "electron": "^42",
-    "electron-builder": "^26",
     "postcss": "^8",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vite": "^6",
-    "vite-plugin-electron": "^1",
-    "vite-plugin-electron-renderer": "^1"
+    "vite": "^6"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true
   }
 }

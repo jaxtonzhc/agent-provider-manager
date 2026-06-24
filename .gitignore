@@ -32,10 +32,9 @@ Thumbs.db
 # Ruff
 .ruff_cache/
 
-# GUI (Electron + Vite)
+# GUI (Tauri + Vite)
 gui/node_modules/
 gui/dist/
-gui/dist-electron/
-gui/release/
+gui/src-tauri/target/
 gui/build/icon.iconset/
 !gui/build/icon.icns

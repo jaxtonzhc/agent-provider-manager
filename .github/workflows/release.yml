@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  python-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build
+        run: |
+          pip install build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/
+
+  gui-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        working-directory: gui
+        run: npm ci
+      - name: Build Tauri (macOS)
+        working-directory: gui
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ''
+        run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-macos
+          path: |
+            gui/src-tauri/target/release/bundle/dmg/*.dmg
+            gui/src-tauri/target/release/bundle/macos/*.app.tar.gz
+
+  gui-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install dependencies
+        working-directory: gui
+        run: npm ci
+      - name: Build Tauri (Linux)
+        working-directory: gui
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ''
+        run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-linux
+          path: |
+            gui/src-tauri/target/release/bundle/appimage/*.AppImage
+            gui/src-tauri/target/release/bundle/deb/*.deb
+
+  publish:
+    needs: [python-package, gui-macos, gui-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
