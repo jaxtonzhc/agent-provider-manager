@@ -40,7 +40,7 @@ export default function Sidebar({ current, onNavigate }: { current: Page; onNavi
       </nav>
 
       <div className="px-4 py-3 border-t border-border text-[11px] text-text-muted">
-        v0.1.3
+        v0.2.0
       </div>
     </aside>
   )
