@@ -38,19 +38,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": [
-        {
-          "name": "apm",
-          "cmd": "apm",
-          "args": true
-        },
-        {
-          "name": "open-file",
-          "cmd": "code",
-          "args": true
-        }
-      ]
+      "open": true
     }
   }
 }
