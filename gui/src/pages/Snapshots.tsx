@@ -50,7 +50,7 @@ export default function Snapshots() {
           <h2 className="text-[22px] font-semibold tracking-tight">Snapshots</h2>
           <p className="text-[13px] text-text-secondary mt-1">Save and restore provider configurations</p>
         </div>
-        <button onClick={handleSave} className="h-8 px-3.5 bg-text-primary text-bg text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity">
+        <button onClick={handleSave} className="h-8 px-3.5 bg-accent text-white text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity">
           Save Snapshot
         </button>
       </div>
@@ -104,7 +104,7 @@ export default function Snapshots() {
               <button onClick={() => setConfirmAction(null)} className="h-8 px-4 text-[13px] text-text-secondary hover:text-text-primary transition-colors">Cancel</button>
               <button onClick={handleAction}
                 className={`h-8 px-4 text-[13px] font-medium rounded-md transition-opacity hover:opacity-90 ${
-                  confirmAction.type === 'delete' ? 'bg-error text-white' : 'bg-text-primary text-bg'
+                  confirmAction.type === 'delete' ? 'bg-error text-white' : 'bg-accent text-white'
                 }`}>
                 {confirmAction.type === 'restore' ? 'Restore' : 'Delete'}
               </button>
