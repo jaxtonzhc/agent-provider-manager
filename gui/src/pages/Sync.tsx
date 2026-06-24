@@ -98,7 +98,7 @@ export default function Sync() {
           <span className="text-[13px] font-medium">Execute</span>
         </div>
         <button onClick={handleSync} disabled={syncing || !selected || checkedCount === 0}
-          className="h-9 px-5 bg-text-primary text-bg text-[13px] font-medium rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity">
+          className="h-9 px-5 bg-accent text-white text-[13px] font-medium rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity">
           {syncing ? 'Syncing…' : `Sync ${selected} → ${checkedCount} agent${checkedCount !== 1 ? 's' : ''}`}
         </button>
       </section>

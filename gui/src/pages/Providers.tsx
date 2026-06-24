@@ -15,6 +15,7 @@ export default function Providers() {
   const { toast } = useToast()
   const [providers, setProviders] = useState<Provider[]>([])
   const [testing, setTesting] = useState<string | null>(null)
+  const [testingAll, setTestingAll] = useState(false)
   const [editing, setEditing] = useState<Provider | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -45,6 +46,19 @@ export default function Providers() {
     toast(ok ? `${name}: Connected` : `${name}: Failed`, ok ? 'success' : 'error')
   }
 
+  async function handleTestAll() {
+    setTestingAll(true)
+    const results: Record<string, 'ok' | 'fail'> = {}
+    for (const p of providers) {
+      const res = await exec(['provider', 'test', p.name])
+      results[p.name] = res.code === 0 ? 'ok' : 'fail'
+    }
+    setTestResults(results)
+    setTestingAll(false)
+    const ok = Object.values(results).filter(v => v === 'ok').length
+    toast(`Health check: ${ok}/${providers.length} connected`, ok === providers.length ? 'success' : 'info')
+  }
+
   async function handleDelete(name: string) {
     const res = await exec(['provider', 'remove', name])
     if (res.code === 0) {
@@ -63,9 +77,14 @@ export default function Providers() {
           <h2 className="text-[22px] font-semibold tracking-tight">Providers</h2>
           <p className="text-[13px] text-text-secondary mt-1">Manage your API provider configurations</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="h-8 px-3.5 bg-text-primary text-bg text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity">
-          Add Provider
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleTestAll} disabled={testingAll || providers.length === 0} className="h-8 px-3.5 border border-border text-text-secondary text-[13px] font-medium rounded-md hover:bg-surface-2 hover:text-text-primary disabled:opacity-40 transition-colors">
+            {testingAll ? 'Testing…' : 'Test All'}
+          </button>
+          <button onClick={() => setShowAdd(true)} className="h-8 px-3.5 bg-accent text-white text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity">
+            Add Provider
+          </button>
+        </div>
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden">
@@ -173,6 +192,28 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | n
   const [anthropicUrl, setAnthropicUrl] = useState(provider?.anthropicUrl ?? '')
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+
+  function handleSmartPaste(text: string) {
+    setPasteText(text)
+    const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean)
+    for (const line of lines) {
+      if (/^(sk-|tp-|sf-|or-)/.test(line) || /^[a-zA-Z0-9_-]{20,}$/.test(line)) {
+        setApiKey(line)
+      } else if (/^https?:\/\//.test(line)) {
+        const url = line.replace(/\s+/g, '')
+        if (/anthropic/i.test(url)) {
+          setAnthropicUrl(url)
+        } else {
+          setBaseUrl(url)
+        }
+        if (!name) {
+          const host = new URL(url).hostname.replace(/^api\.|\.com$|\.cn$|\.ai$/g, '')
+          setName(host)
+        }
+      }
+    }
+  }
 
   async function handleSave() {
     if (!name) return
@@ -202,16 +243,33 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | n
       <div className="relative bg-surface-1 border border-border rounded-xl p-6 w-[520px] shadow-2xl">
         <h3 className="text-[16px] font-semibold mb-6">{isEdit ? `Edit Provider` : 'Add Provider'}</h3>
 
+        {/* Smart paste area */}
+        {!isEdit && (
+          <div className="mb-5">
+            <Field label="Quick Paste (auto-detect URL & key)">
+              <textarea
+                value={pasteText}
+                onChange={e => handleSmartPaste(e.target.value)}
+                placeholder="Paste API key, URL, or both — auto-detected"
+                rows={2}
+                className="input-field font-mono text-[12px] resize-none"
+              />
+            </Field>
+            {(apiKey || baseUrl) && !pasteText && null}
+            {pasteText && (apiKey || baseUrl) && (
+              <p className="text-[11px] text-success mt-1">
+                Detected: {apiKey ? 'API key' : ''}{apiKey && baseUrl ? ' + ' : ''}{baseUrl ? 'URL' : ''}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="space-y-4">
           <Field label="Name">
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. deepseek"
               className="input-field" />
           </Field>
-
-          <div className="pt-2 pb-1">
-            <p className="text-[12px] text-text-muted">Fill in the endpoint(s) this provider supports. Leave blank if not applicable.</p>
-          </div>
 
           <Field label="OpenAI-Compatible Endpoint">
             <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
@@ -234,7 +292,7 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | n
         <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
           <button onClick={onClose} className="h-8 px-4 text-[13px] text-text-secondary hover:text-text-primary transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={!name || saving}
-            className="h-8 px-4 bg-text-primary text-bg text-[13px] font-medium rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="h-8 px-4 bg-accent text-white text-[13px] font-medium rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity">
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Provider'}
           </button>
         </div>
@@ -256,7 +314,7 @@ function ConfirmDialog({ title, description, confirmLabel, danger, onConfirm, on
           <button onClick={onCancel} className="h-8 px-4 text-[13px] text-text-secondary hover:text-text-primary transition-colors">Cancel</button>
           <button onClick={onConfirm}
             className={`h-8 px-4 text-[13px] font-medium rounded-md transition-opacity hover:opacity-90 ${
-              danger ? 'bg-error text-white' : 'bg-text-primary text-bg'
+              danger ? 'bg-error text-white' : 'bg-accent text-white'
             }`}>
             {confirmLabel}
           </button>
